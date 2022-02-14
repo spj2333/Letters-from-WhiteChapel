@@ -1,0 +1,763 @@
+<script type="text/javascript" src="js/jquery.min.js"></script>
+<script type="text/javascript" src="js/boardfunc.js"></script>
+<script type="text/javascript" src="js/mapdata.js"></script>
+<script type="text/javascript" src="js/voice.js"></script>
+<script type="text/javascript">
+
+    $(document).bind("contextmenu", function(){ return false; });
+
+    var canvas_number;
+    var div_temp;
+    var div_temp_1;
+    var boardmsg;
+
+    $(document).ready(function() {
+        canvas_number = document.getElementById('div-canvas-number');
+
+
+        div_temp = document.getElementById('div-temp');
+        parent.div_temp = div_temp;
+
+        div_temp_1 = document.getElementById('div-temp-1');
+        parent.div_temp_1 = div_temp_1;
+
+        parent.canvas_number = canvas_number;
+
+
+        boardmsg = parent.boardmsg;
+
+        updateNumber(canvas_number);
+    });
+
+    function click_point(n) {
+        parent.click_point(n);
+    }
+
+    function updateDIV(msg){
+        if (msg != undefined)
+            boardmsg = msg;
+
+        clearDIVtemp(div_temp);
+        createDIV(boardmsg, div_temp);
+    }
+
+    function createDIV(msg, div_temp){
+        if (msg == undefined)
+            return 0
+
+        if (msg.hasOwnProperty('round'))
+            round = msg['round']
+
+        if (msg.hasOwnProperty('turn'))
+            turn = msg['turn']
+
+        day = msg['day']
+        if (day < 1){return 0}
+
+
+        // {#假警察位置#}
+        if (msg.hasOwnProperty('policeSelectPoint')){
+            var police = msg['policeSelectPoint'];
+            for(var i=0;i<police.length;i++){
+                index = police[i]
+                createDivImg(div_temp, index, "hidepolice")
+            }
+        }
+
+        // {#受害者位置#}
+        if (msg.hasOwnProperty('tragedySelectPoint')){
+            var tragedy = msg['tragedySelectPoint'];
+            for(var i=0;i<tragedy.length;i++){
+                index = tragedy[i]
+                createDivImg(div_temp, index, "tragedy")
+            }
+        }
+
+        // {#历史击杀位置#}
+        if (msg.hasOwnProperty('killedPoint') && document.getElementById('displayMark').checked){
+            var mark = msg['killedPoint'];
+            for(var i=0;i<mark.length;i++){
+                index = mark[i]
+                createDivImg(div_temp, index, "mark")
+            }
+
+        }
+
+        // {#警察循环#}
+        policeA = parseInt(msg['policeposition'+'A'])
+        policeB = parseInt(msg['policeposition'+'B'])
+        policeC = parseInt(msg['policeposition'+'C'])
+        policeD = parseInt(msg['policeposition'+'D'])
+        policeE = parseInt(msg['policeposition'+'E'])
+        for (const policeID of policeList)
+        {
+            if (msg.hasOwnProperty('policeposition'+policeID)){
+
+                <!-- 警察位置与行动力 -->
+                policepos = msg['policeposition'+policeID]
+                policeaction = parseInt(msg['policeaction'+policeID])
+                if (parseInt(policepos)>=0){
+                    name = "police" + policeID
+                    if (policeaction >= 2){
+                        name += "d"
+                    }
+
+                    createDivImg(div_temp, policepos, name)
+                }
+
+
+                <!-- 查到的线索 属于警察的 -->
+                if (document.getElementById('displayClue').checked) {
+                    var clue = msg['clue'+policeID];
+                    for(var i=0;i<20;i++){
+                        index = clue[i]
+                        createDivImg(div_temp, index, "clue")
+                    }
+                }
+
+
+            }
+
+
+        }
+
+
+        <!-- 查到的线索 不属于警察的 -->
+        if (document.getElementById('displayClue').checked && msg.hasOwnProperty('clue')) {
+            var clue = msg['clue'];
+            for(var i=0;i<clue.length;i++){
+                index = clue[i]
+                createDivImg(div_temp, index, "clue")
+            }
+
+        }
+
+        // {#无线索位置#}
+        if (document.getElementById('displayNoClue').checked && msg.hasOwnProperty('noCluePoint')){
+            var mark = msg['noCluePoint'];
+            for(var i=0;i<mark.length;i++){
+                index = mark[i]
+                createDivImg(div_temp, index, "noclue")
+            }
+
+        }
+
+
+        // <!-- 杰克 -->
+        if (msg['jacknowpos']!=undefined || turn < 0){
+
+            jacknowpos = msg['jacknowpos']
+            createDivImg(div_temp, jacknowpos, "jack")
+
+
+            if (document.getElementById('displayFoot').checked) {
+               jackfoot = msg['jackpos']
+                for(var i=0;i<20;i++){
+                    index = jackfoot[i]
+
+                    createDivImg(div_temp, index, "footprint")
+                }
+            }
+
+
+        }
+
+        // 家
+        if (msg['home']!=undefined && document.getElementById('displayHome').checked) {
+            home = msg['home']
+            createDivImg(div_temp, home, "home")
+        }
+
+    }
+
+    function updateNumber(canvas_1, cmd, cmd2){
+        drawclear(canvas_1)
+
+        if (document.getElementById('displayNumber').checked) {
+            // {#数字生成#}
+            // {#寻找当前选择的文字#}
+            if (cmd != undefined) {
+                a = cmd.split("-")
+                police = cmd.substring(0, 1);
+            }
+
+            for (let i = 0; i < map.length; i++) {
+
+                // {#白点#}
+                if (map[i].number > 0) {
+                    [x, y] = coord(map[parseInt(i)].position);
+                    color = '#000000';
+                    if (cmd != undefined && a.indexOf(i.toString()) != -1) {
+                        special =cmd2.substring(0, 1)
+                        if (special == 'A')
+                            color = '#FC9436FF';
+                        else if (special == 'C')
+                            color = '#315afd';
+                        else if (special == 'H')
+                            color = '#04ba16';
+                        else if (special == 'R')
+                            color = '#e104fa';
+
+                        if (police == 'A')
+                            color = '#fd3838';
+                        else if (police == 'B')
+                            color = '#007dff';
+                        else if (police == 'C')
+                            color = '#ffc105';
+                        else if (police == 'D')
+                            color = '#2e9901';
+                        else if (police == 'E')
+                            color = '#8c05ff';
+                        else if (special != 'A' && special != 'C' && special != 'H' && special != 'R')
+                            color = '#ff0000';
+
+                    }
+                    drawtext(canvas_1, map[i].number, x, y, 14, color);
+
+                }
+
+                // {#侦探方的黑色点#}
+                else if (cmd != undefined && a.indexOf(i.toString()) != -1) {
+                    [x, y] = coord(map[parseInt(i)].position);
+                    if (police == 'A') {
+                        color = '#fd3838';
+                    } else if (police == 'B') {
+                        color = '#007dff';
+                    } else if (police == 'C') {
+                        color = '#ffc105';
+                    } else if (police == 'D') {
+                        color = '#2e9901';
+                    } else if (police == 'E') {
+                        color = '#8c05ff';
+                    } else {
+                        color = '#04ba16';
+                    }
+                    drawtext(canvas_1, '✔', x, y, 30, color)
+                }
+
+
+                // {#选中侦探#}
+                else if (cmd != undefined && (police == 'A' || police == 'B' || police == 'C' || police == 'D' || police == 'E')) {
+                    [x, y] = coord(map[parseInt(i)].position);
+                    if (police == 'A' && policeA == i) {
+                        color = '#fd3838';
+                        drawtext(canvas_1, '✔', x, y, 30, color)
+                    } else if (police == 'B' && policeB == i) {
+                        color = '#007dff';
+                        drawtext(canvas_1, '✔', x, y, 30, color)
+                    } else if (police == 'C' && policeC == i) {
+                        color = '#ffc105';
+                        drawtext(canvas_1, '✔', x, y, 30, color)
+                    } else if (police == 'D' && policeD == i) {
+                        color = '#2e9901';
+                        drawtext(canvas_1, '✔', x, y, 30, color)
+                    } else if (police == 'E' && policeE == i) {
+                        color = '#8c05ff';
+                        drawtext(canvas_1, '✔', x, y, 30, color)
+                    }
+
+                }
+
+
+            }
+
+        }
+    }
+
+
+
+</script>
+<link rel="stylesheet" href="css/style.css">
+
+<body>
+    <div id="div-relative">
+
+        <img class="mapsize mapcomponent" usemap="#mymap" style="z-index:90;" />
+
+        <div id="div-temp" class="mapsize mapcomponent" width="1448" height="960"></div>
+        <div id="div-temp-1" class="mapsize mapcomponent" width="1448" height="960"></div>
+
+        <canvas id="div-canvas-number" class="mapcomponent" width="1448px" height="960px" style="z-index:50;"></canvas>
+
+        <div id="div-setting" class="mapcomponent whitebackground" style="left:0; top:785px; width: 210px; height: 174px; z-index:90;">
+            <table align="left" class="texttiny">
+
+                <tr><td>
+                    <input id = "displaySVG" type="checkbox" value="1" checked="checked" onclick="refreshSVG()" />街道
+                    透明度
+                    <input id="SVGAlpha" type="input" style="width: 25px;" value = "75" onchange="refreshSVG()"/>
+                    <input id = "displayNumber" type="checkbox" value="1" checked="checked" onclick="updateNumber(canvas_number)" />数字
+
+                </td></tr>
+                <tr><td>
+                    <input id = "displayFoot" type="checkbox" value="1" checked="checked" onclick="updateDIV()" />脚印
+                    <input id = "displayClue" type="checkbox" value="1" checked="checked" onclick="updateDIV()" />线索
+                    <input id = "displayNoClue" type="checkbox" value="1" checked="checked" onclick="updateDIV()" />搜空
+                </td></tr>
+                <tr><td>
+                    <input id = "displayHome" type="checkbox" value="1" checked="checked" onclick="updateDIV()" />藏匿点
+                    <input id = "displayMark" type="checkbox" value="1" checked="checked" onclick="updateDIV()" />案发点
+                </td></tr>
+
+                <tr><td>
+                    <button type="button" onclick="changeMap(1)">简约</button>
+                    <button type="button" onclick="changeMap(2)">经典</button>
+                    <button type="button" onclick="changeMap(3)">测试</button>
+                    <input id = "displayloc" type="checkbox" value="1" onclick="changeMap()"/>地名
+                </td></tr>
+                <tr><td>
+                    背景透明度(0-100)
+                    <input id="mapAlpha" type="input" style="width: 25px;" value = "35" onchange="changeMap()"/>
+                </td></tr>
+
+                <tr><td>
+                    <input id = "displayVoice" type="checkbox" checked="checked" value="1" />语音提示
+                    <button type="button" onclick="voice('开启语音后，收到系统消息时会收到语音提示')">语音测试</button>
+                </td></tr>
+
+            </table>
+        </div>
+
+        <embed id="img-svg" class="mapsize mapcomponent" style="-moz-opacity:0.75;opacity: 0.75;z-index:-50;" src="svg/streets-generated6.svg" type="image/svg+xml" />
+        <div id="div-down" class="mapsize mapcomponent" style="z-index:-99;" >
+            <img id="img-map-loc" class="mapsize mapcomponent" src="images/alpha.png" style="-moz-opacity:0.24;opacity: 0.24;"/>
+            <img id="img-map" class="mapsize mapcomponent" src="images/vintage-map.jpg" style="-moz-opacity:0.35;opacity: 0.35;"/>
+        </div>
+
+    </div>
+
+
+
+</body>
+
+<map name="mymap" id="mymap" class="mapcomponent">
+    <area shape="circle" coords="183.7251074074074,97.38941111111113,14" href="javascript:void(0);" onclick="click_point(1)" />
+    <area shape="circle" coords="218.25040740740744,79.53953703703704,14" href="javascript:void(0);" onclick="click_point(2)" />
+    <area shape="circle" coords="237.70193333333333,45.44433703703704,14" href="javascript:void(0);" onclick="click_point(3)" />
+    <area shape="circle" coords="142.15746296296297,91.23333333333333,14" href="javascript:void(0);" onclick="click_point(0)" />
+    <area shape="circle" coords="273.20762962962965,49.79602222222223,14" href="javascript:void(0);" onclick="click_point(4)" />
+    <area shape="circle" coords="374.9458296296296,49.99586666666667,14" href="javascript:void(0);" onclick="click_point(5)" />
+    <area shape="circle" coords="408.65871851851847,32.75855925925926,14" href="javascript:void(0);" onclick="click_point(6)" />
+    <area shape="circle" coords="447.8832592592592,35.50424814814814,14" href="javascript:void(0);" onclick="click_point(7)" />
+    <area shape="circle" coords="493.70990740740746,34.096648148148155,14" href="javascript:void(0);" onclick="click_point(8)" />
+    <area shape="circle" coords="539.2715444444444,34.946711111111114,14" href="javascript:void(0);" onclick="click_point(9)" />
+    <area shape="circle" coords="668.239274074074,35.27544074074075,14" href="javascript:void(0);" onclick="click_point(10)" />
+    <area shape="circle" coords="709.9705592592593,57.26412222222222,14" href="javascript:void(0);" onclick="click_point(11)" />
+    <area shape="circle" coords="791.5563296296297,97.87454074074074,14" href="javascript:void(0);" onclick="click_point(12)" />
+    <area shape="circle" coords="829.1430148148148,93.10144444444445,14" href="javascript:void(0);" onclick="click_point(13)" />
+    <area shape="circle" coords="852.8231333333334,91.01176666666667,14" href="javascript:void(0);" onclick="click_point(14)" />
+    <area shape="circle" coords="901.1623185185184,92.72927037037037,14" href="javascript:void(0);" onclick="click_point(15)" />
+    <area shape="circle" coords="972.386588888889,94.15280000000001,14" href="javascript:void(0);" onclick="click_point(16)" />
+    <area shape="circle" coords="1009.2723703703704,92.99138518518518,14" href="javascript:void(0);" onclick="click_point(17)" />
+    <area shape="circle" coords="1082.806437037037,97.87888518518518,14" href="javascript:void(0);" onclick="click_point(18)" />
+    <area shape="circle" coords="1092.3424925925924,125.16778888888888,14" href="javascript:void(0);" onclick="click_point(19)" />
+    <area shape="circle" coords="1168.5744592592591,126.87370740740741,14" href="javascript:void(0);" onclick="click_point(20)" />
+    <area shape="circle" coords="1197.7083037037037,108.09557037037038,14" href="javascript:void(0);" onclick="click_point(21)" />
+    <area shape="circle" coords="1258.110562962963,83.34527037037036,14" href="javascript:void(0);" onclick="click_point(22)" />
+    <area shape="circle" coords="1317.1617,57.73332222222222,14" href="javascript:void(0);" onclick="click_point(23)" />
+    <area shape="circle" coords="1395.3457703703702,28.657403703703707,14" href="javascript:void(0);" onclick="click_point(24)" />
+    <area shape="circle" coords="1419.6732111111112,97.44878518518519,14" href="javascript:void(0);" onclick="click_point(25)" />
+    <area shape="circle" coords="1347.8696814814814,138.6732185185185,14" href="javascript:void(0);" onclick="click_point(26)" />
+    <area shape="circle" coords="1316.1986814814816,149.54736296296298,14" href="javascript:void(0);" onclick="click_point(27)" />
+    <area shape="circle" coords="1286.8172037037036,160.62135185185187,14" href="javascript:void(0);" onclick="click_point(28)" />
+    <area shape="circle" coords="1228.3598074074075,182.3942592592593,14" href="javascript:void(0);" onclick="click_point(29)" />
+    <area shape="circle" coords="1212.6126444444444,144.22397037037035,14" href="javascript:void(0);" onclick="click_point(30)" />
+    <area shape="circle" coords="1195.7026185185184,195.1987851851852,14" href="javascript:void(0);" onclick="click_point(31)" />
+    <area shape="circle" coords="1182.6519074074072,162.90942592592594,14" href="javascript:void(0);" onclick="click_point(32)" />
+    <area shape="circle" coords="1121.9281592592592,222.14158148148147,14" href="javascript:void(0);" onclick="click_point(33)" />
+    <area shape="circle" coords="1111.2118629629629,185.81044074074072,14" href="javascript:void(0);" onclick="click_point(34)" />
+    <area shape="circle" coords="1101.8206222222223,150.60595925925927,14" href="javascript:void(0);" onclick="click_point(35)" />
+    <area shape="circle" coords="1060.0531333333333,248.2821037037037,14" href="javascript:void(0);" onclick="click_point(36)" />
+    <area shape="circle" coords="1020.4158703703704,266.6634481481481,14" href="javascript:void(0);" onclick="click_point(37)" />
+    <area shape="circle" coords="979.4825148148149,286.20765555555556,14" href="javascript:void(0);" onclick="click_point(38)" />
+    <area shape="circle" coords="954.1022703703702,236.74181111111113,14" href="javascript:void(0);" onclick="click_point(39)" />
+    <area shape="circle" coords="930.3497444444445,198.2674111111111,14" href="javascript:void(0);" onclick="click_point(40)" />
+    <area shape="circle" coords="984.4438703703703,158.25507777777779,14" href="javascript:void(0);" onclick="click_point(41)" />
+    <area shape="circle" coords="1023.8407407407407,130.33333333333334,14" href="javascript:void(0);" onclick="click_point(42)" />
+    <area shape="circle" coords="905.0983851851851,214.71402962962966,14" href="javascript:void(0);" onclick="click_point(43)" />
+    <area shape="circle" coords="897.8764703703705,187.87405185185187,14" href="javascript:void(0);" onclick="click_point(44)" />
+    <area shape="circle" coords="890.8544000000002,162.1925925925926,14" href="javascript:void(0);" onclick="click_point(45)" />
+    <area shape="circle" coords="868.7513148148147,166.41539259259258,14" href="javascript:void(0);" onclick="click_point(46)" />
+    <area shape="circle" coords="885.1762111111109,228.75672222222224,14" href="javascript:void(0);" onclick="click_point(47)" />
+    <area shape="circle" coords="864.7182222222222,242.20132962962964,14" href="javascript:void(0);" onclick="click_point(48)" />
+    <area shape="circle" coords="856.8258148148146,205.0968777777778,14" href="javascript:void(0);" onclick="click_point(49)" />
+    <area shape="circle" coords="846.594648148148,170.95533703703703,14" href="javascript:void(0);" onclick="click_point(50)" />
+    <area shape="circle" coords="836.9166740740741,131.7525185185185,14" href="javascript:void(0);" onclick="click_point(51)" />
+    <area shape="circle" coords="808.5069037037036,180.4609814814815,14" href="javascript:void(0);" onclick="click_point(52)" />
+    <area shape="circle" coords="795.9109111111111,144.92777037037038,14" href="javascript:void(0);" onclick="click_point(53)" />
+    <area shape="circle" coords="819.1087962962964,223.8981851851852,14" href="javascript:void(0);" onclick="click_point(54)" />
+    <area shape="circle" coords="785.1873740740741,187.9232888888889,14" href="javascript:void(0);" onclick="click_point(55)" />
+    <area shape="circle" coords="830.7041185185184,264.55349629629626,14" href="javascript:void(0);" onclick="click_point(56)" />
+    <area shape="circle" coords="855.0822444444445,305.5911185185185,14" href="javascript:void(0);" onclick="click_point(57)" />
+    <area shape="circle" coords="875.6473962962963,338.4582888888889,14" href="javascript:void(0);" onclick="click_point(58)" />
+    <area shape="circle" coords="927.3347,311.90504444444446,14" href="javascript:void(0);" onclick="click_point(59)" />
+    <area shape="circle" coords="834.7994814814815,360.86982962962963,14" href="javascript:void(0);" onclick="click_point(60)" />
+    <area shape="circle" coords="816.7555555555556,337.41851851851857,14" href="javascript:void(0);" onclick="click_point(61)" />
+    <area shape="circle" coords="799.3777777777779,320.0407407407407,14" href="javascript:void(0);" onclick="click_point(62)" />
+    <area shape="circle" coords="787.9272703703703,287.5356074074074,14" href="javascript:void(0);" onclick="click_point(63)" />
+    <area shape="circle" coords="777.3833037037037,249.43338148148146,14" href="javascript:void(0);" onclick="click_point(64)" />
+    <area shape="circle" coords="763.456462962963,194.87729629629627,14" href="javascript:void(0);" onclick="click_point(65)" />
+    <area shape="circle" coords="748.6925925925926,152.05555555555554,14" href="javascript:void(0);" onclick="click_point(66)" />
+    <area shape="circle" coords="705.7173481481482,161.48444814814815,14" href="javascript:void(0);" onclick="click_point(67)" />
+    <area shape="circle" coords="698.1276037037037,125.90199999999999,14" href="javascript:void(0);" onclick="click_point(68)" />
+    <area shape="circle" coords="695.422462962963,91.6170925925926,14" href="javascript:void(0);" onclick="click_point(69)" />
+    <area shape="circle" coords="618.6184777777778,90.96252962962963,14" href="javascript:void(0);" onclick="click_point(70)" />
+    <area shape="circle" coords="543.1366518518519,91.62433333333335,14" href="javascript:void(0);" onclick="click_point(71)" />
+    <area shape="circle" coords="542.4198185185185,64.0458,14" href="javascript:void(0);" onclick="click_point(72)" />
+    <area shape="circle" coords="545.8678592592593,141.6839185185185,14" href="javascript:void(0);" onclick="click_point(73)" />
+    <area shape="circle" coords="561.1574074074074,192.6037037037037,14" href="javascript:void(0);" onclick="click_point(74)" />
+    <area shape="circle" coords="631.3925925925927,179.57037037037037,14" href="javascript:void(0);" onclick="click_point(75)" />
+    <area shape="circle" coords="567.8145444444444,217.74065925925927,14" href="javascript:void(0);" onclick="click_point(76)" />
+    <area shape="circle" coords="581.3547296296296,259.2474814814815,14" href="javascript:void(0);" onclick="click_point(77)" />
+    <area shape="circle" coords="598.132974074074,301.76366296296294,14" href="javascript:void(0);" onclick="click_point(78)" />
+    <area shape="circle" coords="613.8309,324.5155185185185,14" href="javascript:void(0);" onclick="click_point(79)" />
+    <area shape="circle" coords="622.8789296296296,243.12090370370368,14" href="javascript:void(0);" onclick="click_point(80)" />
+    <area shape="circle" coords="675.5871777777777,225.98496666666665,14" href="javascript:void(0);" onclick="click_point(81)" />
+    <area shape="circle" coords="697.5975814814815,218.19248148148145,14" href="javascript:void(0);" onclick="click_point(82)" />
+    <area shape="circle" coords="712.3078703703703,185.83216296296297,14" href="javascript:void(0);" onclick="click_point(83)" />
+    <area shape="circle" coords="718.9563185185185,209.6498555555555,14" href="javascript:void(0);" onclick="click_point(84)" />
+    <area shape="circle" coords="734.2111111111111,264.28703703703707,14" href="javascript:void(0);" onclick="click_point(85)" />
+    <area shape="circle" coords="714.1600518518519,269.7755185185185,14" href="javascript:void(0);" onclick="click_point(86)" />
+    <area shape="circle" coords="704.0128777777778,244.80509999999998,14" href="javascript:void(0);" onclick="click_point(87)" />
+    <area shape="circle" coords="693.4356037037037,279.04366666666664,14" href="javascript:void(0);" onclick="click_point(88)" />
+    <area shape="circle" coords="736.7381296296296,314.99684074074077,14" href="javascript:void(0);" onclick="click_point(89)" />
+    <area shape="circle" coords="699.9841296296296,327.9331481481481,14" href="javascript:void(0);" onclick="click_point(90)" />
+    <area shape="circle" coords="660.7480037037037,340.0975925925926,14" href="javascript:void(0);" onclick="click_point(91)" />
+    <area shape="circle" coords="647.446762962963,295.2658222222222,14" href="javascript:void(0);" onclick="click_point(92)" />
+    <area shape="circle" coords="629.7170851851852,349.94210370370365,14" href="javascript:void(0);" onclick="click_point(93)" />
+    <area shape="circle" coords="583.7745851851851,359.9488074074074,14" href="javascript:void(0);" onclick="click_point(94)" />
+    <area shape="circle" coords="529.2822185185186,374.54758888888887,14" href="javascript:void(0);" onclick="click_point(95)" />
+    <area shape="circle" coords="522.7423814814815,346.0625148148148,14" href="javascript:void(0);" onclick="click_point(96)" />
+    <area shape="circle" coords="515.749274074074,318.5940407407407,14" href="javascript:void(0);" onclick="click_point(97)" />
+    <area shape="circle" coords="554.6407407407407,308.4555555555555,14" href="javascript:void(0);" onclick="click_point(98)" />
+    <area shape="circle" coords="502.68263333333334,275.1988333333333,14" href="javascript:void(0);" onclick="click_point(99)" />
+    <area shape="circle" coords="543.8578296296296,266.8502592592593,14" href="javascript:void(0);" onclick="click_point(100)" />
+    <area shape="circle" coords="489.5653074074074,382.5326777777778,14" href="javascript:void(0);" onclick="click_point(101)" />
+    <area shape="circle" coords="457.1398222222222,385.653437037037,14" href="javascript:void(0);" onclick="click_point(102)" />
+    <area shape="circle" coords="442.6554444444444,356.44139259259254,14" href="javascript:void(0);" onclick="click_point(103)" />
+    <area shape="circle" coords="427.5063666666666,329.2553074074074,14" href="javascript:void(0);" onclick="click_point(104)" />
+    <area shape="circle" coords="405.20198888888893,285.2345,14" href="javascript:void(0);" onclick="click_point(105)" />
+    <area shape="circle" coords="378.8138333333333,241.25713703703704,14" href="javascript:void(0);" onclick="click_point(106)" />
+    <area shape="circle" coords="443.9196777777778,234.6130333333333,14" href="javascript:void(0);" onclick="click_point(107)" />
+    <area shape="circle" coords="508.5867333333333,225.80684444444444,14" href="javascript:void(0);" onclick="click_point(108)" />
+    <area shape="circle" coords="376.5358962962963,212.70834444444444,14" href="javascript:void(0);" onclick="click_point(109)" />
+    <area shape="circle" coords="373.2833555555556,185.8987777777778,14" href="javascript:void(0);" onclick="click_point(110)" />
+    <area shape="circle" coords="372.46515185185183,146.81905185185184,14" href="javascript:void(0);" onclick="click_point(111)" />
+    <area shape="circle" coords="374.1406592592592,109.27291481481481,14" href="javascript:void(0);" onclick="click_point(112)" />
+    <area shape="circle" coords="403.2802962962963,146.07615185185185,14" href="javascript:void(0);" onclick="click_point(113)" />
+    <area shape="circle" coords="437.54203333333334,144.54835555555556,14" href="javascript:void(0);" onclick="click_point(114)" />
+    <area shape="circle" coords="485.9536259259259,143.30294814814818,14" href="javascript:void(0);" onclick="click_point(115)" />
+    <area shape="circle" coords="439.6592259259259,119.23907037037036,14" href="javascript:void(0);" onclick="click_point(116)" />
+    <area shape="circle" coords="442.0501185185185,90.68303703703702,14" href="javascript:void(0);" onclick="click_point(117)" />
+    <area shape="circle" coords="491.6462962962963,93.7618,14" href="javascript:void(0);" onclick="click_point(118)" />
+    <area shape="circle" coords="259.69785555555546,169.6997925925926,14" href="javascript:void(0);" onclick="click_point(119)" />
+    <area shape="circle" coords="213.16451111111112,174.80017037037038,14" href="javascript:void(0);" onclick="click_point(120)" />
+    <area shape="circle" coords="211.42962962962963,131.78148148148148,14" href="javascript:void(0);" onclick="click_point(121)" />
+    <area shape="circle" coords="178.30034444444448,177.77177037037035,14" href="javascript:void(0);" onclick="click_point(122)" />
+    <area shape="circle" coords="180.9910037037037,137.90280370370368,14" href="javascript:void(0);" onclick="click_point(123)" />
+    <area shape="circle" coords="141.09886666666665,178.44950370370373,14" href="javascript:void(0);" onclick="click_point(124)" />
+    <area shape="circle" coords="175.6632666666667,216.8312222222222,14" href="javascript:void(0);" onclick="click_point(125)" />
+    <area shape="circle" coords="140.3936185185185,226.5309185185185,14" href="javascript:void(0);" onclick="click_point(126)" />
+    <area shape="circle" coords="204.2830185185185,247.043937037037,14" href="javascript:void(0);" onclick="click_point(127)" />
+    <area shape="circle" coords="158.60263333333333,270.30119629629627,14" href="javascript:void(0);" onclick="click_point(128)" />
+    <area shape="circle" coords="123.76453333333333,269.5988444444444,14" href="javascript:void(0);" onclick="click_point(129)" />
+    <area shape="circle" coords="117.74168518518519,296.6053592592593,14" href="javascript:void(0);" onclick="click_point(130)" />
+    <area shape="circle" coords="149.56908518518517,310.2121592592593,14" href="javascript:void(0);" onclick="click_point(131)" />
+    <area shape="circle" coords="182.75484814814814,322.9153148148148,14" href="javascript:void(0);" onclick="click_point(132)" />
+    <area shape="circle" coords="190.54733333333337,347.74091851851847,14" href="javascript:void(0);" onclick="click_point(133)" />
+    <area shape="circle" coords="201.6618703703704,375.97401481481484,14" href="javascript:void(0);" onclick="click_point(134)" />
+    <area shape="circle" coords="217.83768518518522,422.67244814814813,14" href="javascript:void(0);" onclick="click_point(135)" />
+    <area shape="circle" coords="254.6496111111111,460.02018888888887,14" href="javascript:void(0);" onclick="click_point(136)" />
+    <area shape="circle" coords="230.46698518518514,360.8350740740741,14" href="javascript:void(0);" onclick="click_point(137)" />
+    <area shape="circle" coords="262.7997888888889,368.9056037037037,14" href="javascript:void(0);" onclick="click_point(138)" />
+    <area shape="circle" coords="283.29398148148147,399.3036814814815,14" href="javascript:void(0);" onclick="click_point(139)" />
+    <area shape="circle" coords="294.8762703703703,428.55192962962957,14" href="javascript:void(0);" onclick="click_point(140)" />
+    <area shape="circle" coords="324.9021740740741,418.0615444444444,14" href="javascript:void(0);" onclick="click_point(141)" />
+    <area shape="circle" coords="386.41371481481485,395.34299629629635,14" href="javascript:void(0);" onclick="click_point(142)" />
+    <area shape="circle" coords="307.48674444444447,389.5257851851852,14" href="javascript:void(0);" onclick="click_point(143)" />
+    <area shape="circle" coords="285.85575555555556,334.5859407407408,14" href="javascript:void(0);" onclick="click_point(144)" />
+    <area shape="circle" coords="259.47049629629635,260.36110740740736,14" href="javascript:void(0);" onclick="click_point(145)" />
+    <area shape="circle" coords="217.50026666666665,265.4513481481481,14" href="javascript:void(0);" onclick="click_point(146)" />
+    <area shape="circle" coords="250.02712222222223,233.28363333333334,14" href="javascript:void(0);" onclick="click_point(147)" />
+    <area shape="circle" coords="309.4547777777778,223.37105925925925,14" href="javascript:void(0);" onclick="click_point(148)" />
+    <area shape="circle" coords="313.44297777777774,252.38325925925923,14" href="javascript:void(0);" onclick="click_point(149)" />
+    <area shape="circle" coords="379.13097777777773,305.0799222222223,14" href="javascript:void(0);" onclick="click_point(150)" />
+    <area shape="circle" coords="290.80697407407405,293.9769703703704,14" href="javascript:void(0);" onclick="click_point(151)" />
+    <area shape="circle" coords="358.4079777777778,360.98712962962964,14" href="javascript:void(0);" onclick="click_point(152)" />
+    <area shape="circle" coords="374.6489592592593,279.01035925925925,14" href="javascript:void(0);" onclick="click_point(153)" />
+    <area shape="circle" coords="319.4325185185185,341.5008481481481,14" href="javascript:void(0);" onclick="click_point(154)" />
+    <area shape="circle" coords="385.4492481481481,332.10815925925925,14" href="javascript:void(0);" onclick="click_point(155)" />
+    <area shape="circle" coords="762.6903925925927,302.07935925925926,14" href="javascript:void(0);" onclick="click_point(156)" />
+    <area shape="circle" coords="1384.150137037037,232.35247407407408,14" href="javascript:void(0);" onclick="click_point(157)" />
+    <area shape="circle" coords="1392.7883407407408,308.3570814814815,14" href="javascript:void(0);" onclick="click_point(158)" />
+    <area shape="circle" coords="1316.544788888889,318.91842592592593,14" href="javascript:void(0);" onclick="click_point(159)" />
+    <area shape="circle" coords="1274.3703703703704,321.48888888888894,14" href="javascript:void(0);" onclick="click_point(160)" />
+    <area shape="circle" coords="1238.8226777777777,329.00912222222223,14" href="javascript:void(0);" onclick="click_point(161)" />
+    <area shape="circle" coords="1231.0707407407408,276.81207037037035,14" href="javascript:void(0);" onclick="click_point(162)" />
+    <area shape="circle" coords="1221.4159370370369,247.83462592592596,14" href="javascript:void(0);" onclick="click_point(163)" />
+    <area shape="circle" coords="1130.6127037037038,280.06895555555553,14" href="javascript:void(0);" onclick="click_point(164)" />
+    <area shape="circle" coords="1137.6883555555555,309.39685185185186,14" href="javascript:void(0);" onclick="click_point(165)" />
+    <area shape="circle" coords="1142.7829407407407,345.5585592592593,14" href="javascript:void(0);" onclick="click_point(166)" />
+    <area shape="circle" coords="1187.4814814814815,337.41851851851857,14" href="javascript:void(0);" onclick="click_point(167)" />
+    <area shape="circle" coords="1100.5925925925926,351.9,14" href="javascript:void(0);" onclick="click_point(168)" />
+    <area shape="circle" coords="1073.0777777777778,359.14074074074074,14" href="javascript:void(0);" onclick="click_point(169)" />
+    <area shape="circle" coords="1044.495677777778,364.6697703703704,14" href="javascript:void(0);" onclick="click_point(170)" />
+    <area shape="circle" coords="1014.1251148148149,371.77004074074074,14" href="javascript:void(0);" onclick="click_point(171)" />
+    <area shape="circle" coords="980.3962962962963,372.17407407407404,14" href="javascript:void(0);" onclick="click_point(172)" />
+    <area shape="circle" coords="953.181248148148,375.35275925925924,14" href="javascript:void(0);" onclick="click_point(173)" />
+    <area shape="circle" coords="922.1401925925926,375.72493333333335,14" href="javascript:void(0);" onclick="click_point(174)" />
+    <area shape="circle" coords="867.4016407407407,379.0817407407407,14" href="javascript:void(0);" onclick="click_point(175)" />
+    <area shape="circle" coords="799.6659592592591,388.0139185185185,14" href="javascript:void(0);" onclick="click_point(176)" />
+    <area shape="circle" coords="771.3083222222222,409.92439999999993,14" href="javascript:void(0);" onclick="click_point(177)" />
+    <area shape="circle" coords="705.6203222222223,457.6278481481482,14" href="javascript:void(0);" onclick="click_point(178)" />
+    <area shape="circle" coords="711.5519370370371,493.0423111111111,14" href="javascript:void(0);" onclick="click_point(179)" />
+    <area shape="circle" coords="685.882062962963,470.0587518518519,14" href="javascript:void(0);" onclick="click_point(180)" />
+    <area shape="circle" coords="669.6903185185187,441.71414814814807,14" href="javascript:void(0);" onclick="click_point(181)" />
+    <area shape="circle" coords="657.6200037037037,410.17058518518525,14" href="javascript:void(0);" onclick="click_point(182)" />
+    <area shape="circle" coords="645.666988888889,378.60529999999994,14" href="javascript:void(0);" onclick="click_point(183)" />
+    <area shape="circle" coords="662.9376037037036,487.46983703703705,14" href="javascript:void(0);" onclick="click_point(184)" />
+    <area shape="circle" coords="640.7780407407407,506.96770370370365,14" href="javascript:void(0);" onclick="click_point(185)" />
+    <area shape="circle" coords="606.1615074074074,482.08272592592596,14" href="javascript:void(0);" onclick="click_point(186)" />
+    <area shape="circle" coords="587.3877148148148,447.4618481481481,14" href="javascript:void(0);" onclick="click_point(187)" />
+    <area shape="circle" coords="567.9318444444444,413.6808962962963,14" href="javascript:void(0);" onclick="click_point(188)" />
+    <area shape="circle" coords="592.9645333333333,533.5745296296296,14" href="javascript:void(0);" onclick="click_point(189)" />
+    <area shape="circle" coords="546.5890370370371,560.675174074074,14" href="javascript:void(0);" onclick="click_point(190)" />
+    <area shape="circle" coords="530.6927148148148,527.1824037037037,14" href="javascript:void(0);" onclick="click_point(191)" />
+    <area shape="circle" coords="510.3230629629629,487.49011111111105,14" href="javascript:void(0);" onclick="click_point(192)" />
+    <area shape="circle" coords="484.02758888888883,438.7034481481481,14" href="javascript:void(0);" onclick="click_point(193)" />
+    <area shape="circle" coords="504.869337037037,586.9822333333333,14" href="javascript:void(0);" onclick="click_point(194)" />
+    <area shape="circle" coords="454.00747777777775,468.7105259259259,14" href="javascript:void(0);" onclick="click_point(195)" />
+    <area shape="circle" coords="439.24360740740747,440.4223999999999,14" href="javascript:void(0);" onclick="click_point(196)" />
+    <area shape="circle" coords="413.5592518518518,455.3180518518518,14" href="javascript:void(0);" onclick="click_point(197)" />
+    <area shape="circle" coords="442.92190370370366,618.9501037037037,14" href="javascript:void(0);" onclick="click_point(198)" />
+    <area shape="circle" coords="425.05609999999996,591.6249962962962,14" href="javascript:void(0);" onclick="click_point(199)" />
+    <area shape="circle" coords="400.12043703703705,554.5972962962963,14" href="javascript:void(0);" onclick="click_point(200)" />
+    <area shape="circle" coords="378.0622444444444,516.9266185185186,14" href="javascript:void(0);" onclick="click_point(201)" />
+    <area shape="circle" coords="348.6662851851852,465.5637,14" href="javascript:void(0);" onclick="click_point(202)" />
+    <area shape="circle" coords="286.0121555555556,497.92691481481484,14" href="javascript:void(0);" onclick="click_point(203)" />
+    <area shape="circle" coords="271.2598703703704,478.2740962962963,14" href="javascript:void(0);" onclick="click_point(204)" />
+    <area shape="circle" coords="312.83475555555555,527.2186074074075,14" href="javascript:void(0);" onclick="click_point(205)" />
+    <area shape="circle" coords="346.74169629629625,559.7889074074075,14" href="javascript:void(0);" onclick="click_point(206)" />
+    <area shape="circle" coords="376.7429814814814,596.6326925925925,14" href="javascript:void(0);" onclick="click_point(207)" />
+    <area shape="circle" coords="409.0975074074074,638.2611592592593,14" href="javascript:void(0);" onclick="click_point(208)" />
+    <area shape="circle" coords="362.5525777777778,665.109825925926,14" href="javascript:void(0);" onclick="click_point(209)" />
+    <area shape="circle" coords="312.5885703703704,693.4920814814815,14" href="javascript:void(0);" onclick="click_point(210)" />
+    <area shape="circle" coords="268.95007407407405,718.7593703703703,14" href="javascript:void(0);" onclick="click_point(211)" />
+    <area shape="circle" coords="217.22222222222223,670.4925925925927,14" href="javascript:void(0);" onclick="click_point(212)" />
+    <area shape="circle" coords="194.05185185185184,640.0814814814814,14" href="javascript:void(0);" onclick="click_point(213)" />
+    <area shape="circle" coords="208.5333333333333,603.8777777777779,14" href="javascript:void(0);" onclick="click_point(214)" />
+    <area shape="circle" coords="231.70370370370372,576.3629629629629,14" href="javascript:void(0);" onclick="click_point(215)" />
+    <area shape="circle" coords="280.94074074074075,556.088888888889,14" href="javascript:void(0);" onclick="click_point(216)" />
+    <area shape="circle" coords="205.63703703703703,557.537037037037,14" href="javascript:void(0);" onclick="click_point(217)" />
+    <area shape="circle" coords="221.56666666666666,538.7111111111111,14" href="javascript:void(0);" onclick="click_point(218)" />
+    <area shape="circle" coords="168.06048888888887,492.08798148148145,14" href="javascript:void(0);" onclick="click_point(219)" />
+    <area shape="circle" coords="191.84052962962966,460.9455555555556,14" href="javascript:void(0);" onclick="click_point(220)" />
+    <area shape="circle" coords="97.69062592592593,547.704111111111,14" href="javascript:void(0);" onclick="click_point(221)" />
+    <area shape="circle" coords="130.33333333333334,580.7074074074073,14" href="javascript:void(0);" onclick="click_point(222)" />
+    <area shape="circle" coords="165.08888888888887,612.5666666666666,14" href="javascript:void(0);" onclick="click_point(223)" />
+    <area shape="circle" coords="144.81481481481478,641.5296296296297,14" href="javascript:void(0);" onclick="click_point(224)" />
+    <area shape="circle" coords="112.95555555555555,621.2555555555556,14" href="javascript:void(0);" onclick="click_point(225)" />
+    <area shape="circle" coords="83.00495555555555,598.8570481481481,14" href="javascript:void(0);" onclick="click_point(226)" />
+    <area shape="circle" coords="70.08457777777777,580.2309666666666,14" href="javascript:void(0);" onclick="click_point(227)" />
+    <area shape="circle" coords="76.65772222222222,718.598625925926,14" href="javascript:void(0);" onclick="click_point(228)" />
+    <area shape="circle" coords="68.3048037037037,763.6577555555555,14" href="javascript:void(0);" onclick="click_point(229)" />
+    <area shape="circle" coords="98.47407407407408,696.5592592592593,14" href="javascript:void(0);" onclick="click_point(230)" />
+    <area shape="circle" coords="144.81481481481478,728.4185185185186,14" href="javascript:void(0);" onclick="click_point(231)" />
+    <area shape="circle" coords="153.89904814814815,709.7822999999999,14" href="javascript:void(0);" onclick="click_point(232)" />
+    <area shape="circle" coords="166.53703703703704,667.5962962962964,14" href="javascript:void(0);" onclick="click_point(233)" />
+    <area shape="circle" coords="189.7074074074074,689.3185185185185,14" href="javascript:void(0);" onclick="click_point(234)" />
+    <area shape="circle" coords="235.53115925925928,739.929848148148,14" href="javascript:void(0);" onclick="click_point(235)" />
+    <area shape="circle" coords="209.20817037037042,754.7632296296296,14" href="javascript:void(0);" onclick="click_point(236)" />
+    <area shape="circle" coords="190.10275185185185,764.6729074074074,14" href="javascript:void(0);" onclick="click_point(237)" />
+    <area shape="circle" coords="240.90234074074075,832.3101148148147,14" href="javascript:void(0);" onclick="click_point(238)" />
+    <area shape="circle" coords="298.3185185185185,770.4148148148148,14" href="javascript:void(0);" onclick="click_point(239)" />
+    <area shape="circle" coords="305.2363222222222,824.0730481481481,14" href="javascript:void(0);" onclick="click_point(240)" />
+    <area shape="circle" coords="317.13575555555553,893.8781333333334,14" href="javascript:void(0);" onclick="click_point(241)" />
+    <area shape="circle" coords="377.9666666666667,819.6518518518518,14" href="javascript:void(0);" onclick="click_point(242)" />
+    <area shape="circle" coords="395.34444444444443,838.4777777777779,14" href="javascript:void(0);" onclick="click_point(243)" />
+    <area shape="circle" coords="405.48148148148147,858.7518518518518,14" href="javascript:void(0);" onclick="click_point(244)" />
+    <area shape="circle" coords="408.34447037037035,880.9780296296295,14" href="javascript:void(0);" onclick="click_point(245)" />
+    <area shape="circle" coords="466.668637037037,872.7264814814814,14" href="javascript:void(0);" onclick="click_point(246)" />
+    <area shape="circle" coords="477.64849629629634,948.537037037037,14" href="javascript:void(0);" onclick="click_point(247)" />
+    <area shape="circle" coords="552.9203407407407,931.0448555555556,14" href="javascript:void(0);" onclick="click_point(248)" />
+    <area shape="circle" coords="618.737225925926,917.5915592592592,14" href="javascript:void(0);" onclick="click_point(249)" />
+    <area shape="circle" coords="606.7740740740741,879.0259259259258,14" href="javascript:void(0);" onclick="click_point(250)" />
+    <area shape="circle" coords="514.0925925925926,897.8518518518518,14" href="javascript:void(0);" onclick="click_point(251)" />
+    <area shape="circle" coords="511.1962962962963,868.8888888888889,14" href="javascript:void(0);" onclick="click_point(252)" />
+    <area shape="circle" coords="598.0851851851852,848.614814814815,14" href="javascript:void(0);" onclick="click_point(253)" />
+    <area shape="circle" coords="645.8740740740741,835.5814814814814,14" href="javascript:void(0);" onclick="click_point(254)" />
+    <area shape="circle" coords="658.9074074074074,863.0962962962964,14" href="javascript:void(0);" onclick="click_point(255)" />
+    <area shape="circle" coords="605.325925925926,761.7259259259259,14" href="javascript:void(0);" onclick="click_point(256)" />
+    <area shape="circle" coords="580.7074074074073,766.0703703703704,14" href="javascript:void(0);" onclick="click_point(257)" />
+    <area shape="circle" coords="585.0518518518519,812.4111111111112,14" href="javascript:void(0);" onclick="click_point(258)" />
+    <area shape="circle" coords="548.8481481481482,819.6518518518518,14" href="javascript:void(0);" onclick="click_point(259)" />
+    <area shape="circle" coords="505.40370370370374,832.6851851851852,14" href="javascript:void(0);" onclick="click_point(260)" />
+    <area shape="circle" coords="498.1629629629629,793.5851851851852,14" href="javascript:void(0);" onclick="click_point(261)" />
+    <area shape="circle" coords="563.3296296296296,732.7629629629629,14" href="javascript:void(0);" onclick="click_point(262)" />
+    <area shape="circle" coords="514.0925925925926,748.6925925925926,14" href="javascript:void(0);" onclick="click_point(263)" />
+    <area shape="circle" coords="452.7186259259259,770.485774074074,14" href="javascript:void(0);" onclick="click_point(264)" />
+    <area shape="circle" coords="458.83994814814815,818.6786962962963,14" href="javascript:void(0);" onclick="click_point(265)" />
+    <area shape="circle" coords="442.8914925925926,735.6592592592593,14" href="javascript:void(0);" onclick="click_point(266)" />
+    <area shape="circle" coords="432.09265185185177,690.3249814814816,14" href="javascript:void(0);" onclick="click_point(267)" />
+    <area shape="circle" coords="501.05925925925914,713.9370370370372,14" href="javascript:void(0);" onclick="click_point(268)" />
+    <area shape="circle" coords="530.0222222222221,698.0074074074073,14" href="javascript:void(0);" onclick="click_point(269)" />
+    <area shape="circle" coords="506.8518518518519,653.1148148148148,14" href="javascript:void(0);" onclick="click_point(270)" />
+    <area shape="circle" coords="600.9814814814814,658.9074074074074,14" href="javascript:void(0);" onclick="click_point(271)" />
+    <area shape="circle" coords="582.1555555555556,625.6,14" href="javascript:void(0);" onclick="click_point(272)" />
+    <area shape="circle" coords="564.7777777777777,598.0851851851852,14" href="javascript:void(0);" onclick="click_point(273)" />
+    <area shape="circle" coords="625.9721740740741,578.2296259259259,14" href="javascript:void(0);" onclick="click_point(274)" />
+    <area shape="circle" coords="625.6,598.0851851851852,14" href="javascript:void(0);" onclick="click_point(275)" />
+    <area shape="circle" coords="648.7703703703704,629.9444444444445,14" href="javascript:void(0);" onclick="click_point(276)" />
+    <area shape="circle" coords="611.1185185185185,677.7333333333333,14" href="javascript:void(0);" onclick="click_point(277)" />
+    <area shape="circle" coords="622.7037037037036,699.4555555555555,14" href="javascript:void(0);" onclick="click_point(278)" />
+    <area shape="circle" coords="596.637037037037,712.4888888888889,14" href="javascript:void(0);" onclick="click_point(279)" />
+    <area shape="circle" coords="667.5962962962964,786.3444444444444,14" href="javascript:void(0);" onclick="click_point(280)" />
+    <area shape="circle" coords="686.4222222222222,832.6851851851852,14" href="javascript:void(0);" onclick="click_point(281)" />
+    <area shape="circle" coords="720.4435666666667,892.5197703703703,14" href="javascript:void(0);" onclick="click_point(282)" />
+    <area shape="circle" coords="669.6265999999999,904.6842148148147,14" href="javascript:void(0);" onclick="click_point(283)" />
+    <area shape="circle" coords="755.6929407407407,869.8548037037037,14" href="javascript:void(0);" onclick="click_point(284)" />
+    <area shape="circle" coords="729.8666666666667,808.0666666666666,14" href="javascript:void(0);" onclick="click_point(285)" />
+    <area shape="circle" coords="711.0407407407407,768.9666666666666,14" href="javascript:void(0);" onclick="click_point(286)" />
+    <area shape="circle" coords="689.3185185185185,771.8629629629629,14" href="javascript:void(0);" onclick="click_point(287)" />
+    <area shape="circle" coords="689.3185185185185,716.8333333333334,14" href="javascript:void(0);" onclick="click_point(288)" />
+    <area shape="circle" coords="667.5962962962964,666.1481481481482,14" href="javascript:void(0);" onclick="click_point(289)" />
+    <area shape="circle" coords="692.2148148148149,645.8740740740741,14" href="javascript:void(0);" onclick="click_point(290)" />
+    <area shape="circle" coords="726.5156518518519,625.4870444444445,14" href="javascript:void(0);" onclick="click_point(291)" />
+    <area shape="circle" coords="732.4878148148148,650.2663074074075,14" href="javascript:void(0);" onclick="click_point(292)" />
+    <area shape="circle" coords="747.3602962962963,756.8992481481481,14" href="javascript:void(0);" onclick="click_point(293)" />
+    <area shape="circle" coords="760.6485037037037,805.1703703703704,14" href="javascript:void(0);" onclick="click_point(294)" />
+    <area shape="circle" coords="765.8357703703704,835.5858259259261,14" href="javascript:void(0);" onclick="click_point(295)" />
+    <area shape="circle" coords="809.8058925925927,800.1988777777777,14" href="javascript:void(0);" onclick="click_point(296)" />
+    <area shape="circle" coords="814.0982037037036,857.286325925926,14" href="javascript:void(0);" onclick="click_point(297)" />
+    <area shape="circle" coords="803.9133777777777,712.5439185185186,14" href="javascript:void(0);" onclick="click_point(298)" />
+    <area shape="circle" coords="798.1396111111111,643.7539851851852,14" href="javascript:void(0);" onclick="click_point(299)" />
+    <area shape="circle" coords="765.3767074074074,589.3615407407407,14" href="javascript:void(0);" onclick="click_point(300)" />
+    <area shape="circle" coords="712.4686148148147,583.0143074074074,14" href="javascript:void(0);" onclick="click_point(301)" />
+    <area shape="circle" coords="671.2181148148148,581.4952,14" href="javascript:void(0);" onclick="click_point(302)" />
+    <area shape="circle" coords="699.9450296296296,552.3932148148149,14" href="javascript:void(0);" onclick="click_point(303)" />
+    <area shape="circle" coords="731.7593962962962,536.8705148148148,14" href="javascript:void(0);" onclick="click_point(304)" />
+    <area shape="circle" coords="759.0845037037037,551.9949740740741,14" href="javascript:void(0);" onclick="click_point(305)" />
+    <area shape="circle" coords="794.4178703703705,538.2694259259259,14" href="javascript:void(0);" onclick="click_point(306)" />
+    <area shape="circle" coords="776.7750814814816,500.05424444444446,14" href="javascript:void(0);" onclick="click_point(307)" />
+    <area shape="circle" coords="813.0888444444445,476.83318888888886,14" href="javascript:void(0);" onclick="click_point(308)" />
+    <area shape="circle" coords="795.7675444444443,443.8994037037037,14" href="javascript:void(0);" onclick="click_point(309)" />
+    <area shape="circle" coords="864.3026037037035,460.0288777777777,14" href="javascript:void(0);" onclick="click_point(310)" />
+    <area shape="circle" coords="841.3451111111112,542.9932851851852,14" href="javascript:void(0);" onclick="click_point(311)" />
+    <area shape="circle" coords="889.4077,543.0555555555555,14" href="javascript:void(0);" onclick="click_point(312)" />
+    <area shape="circle" coords="846.0791074074074,594.848574074074,14" href="javascript:void(0);" onclick="click_point(313)" />
+    <area shape="circle" coords="889.1455851851853,600.2371333333333,14" href="javascript:void(0);" onclick="click_point(314)" />
+    <area shape="circle" coords="885.2862703703704,646.8052333333333,14" href="javascript:void(0);" onclick="click_point(315)" />
+    <area shape="circle" coords="915.2296296296295,645.8740740740741,14" href="javascript:void(0);" onclick="click_point(316)" />
+    <area shape="circle" coords="878.2801296296295,690.7652185185186,14" href="javascript:void(0);" onclick="click_point(317)" />
+    <area shape="circle" coords="859.3267666666668,738.4469444444445,14" href="javascript:void(0);" onclick="click_point(318)" />
+    <area shape="circle" coords="912.3333333333333,732.7629629629629,14" href="javascript:void(0);" onclick="click_point(319)" />
+    <area shape="circle" coords="844.5817222222223,767.0420777777779,14" href="javascript:void(0);" onclick="click_point(320)" />
+    <area shape="circle" coords="847.7864740740741,793.5851851851852,14" href="javascript:void(0);" onclick="click_point(321)" />
+    <area shape="circle" coords="900.7481481481481,774.7592592592592,14" href="javascript:void(0);" onclick="click_point(322)" />
+    <area shape="circle" coords="767.5185185185186,645.8740740740741,14" href="javascript:void(0);" onclick="click_point(323)" />
+    <area shape="circle" coords="906.5407407407407,808.0666666666666,14" href="javascript:void(0);" onclick="click_point(324)" />
+    <area shape="circle" coords="849.5112185185185,815.246585185185,14" href="javascript:void(0);" onclick="click_point(325)" />
+    <area shape="circle" coords="853.0027037037036,849.3649555555555,14" href="javascript:void(0);" onclick="click_point(326)" />
+    <area shape="circle" coords="860.0088444444444,903.5068703703704,14" href="javascript:void(0);" onclick="click_point(327)" />
+    <area shape="circle" coords="899.5418407407409,923.4522148148147,14" href="javascript:void(0);" onclick="click_point(328)" />
+    <area shape="circle" coords="894.9555555555555,873.2333333333332,14" href="javascript:void(0);" onclick="click_point(329)" />
+    <area shape="circle" coords="892.0592592592593,826.8925925925927,14" href="javascript:void(0);" onclick="click_point(330)" />
+    <area shape="circle" coords="921.0222222222221,825.4444444444443,14" href="javascript:void(0);" onclick="click_point(331)" />
+    <area shape="circle" coords="925.3666666666667,873.2333333333332,14" href="javascript:void(0);" onclick="click_point(332)" />
+    <area shape="circle" coords="964.4666666666666,868.8888888888889,14" href="javascript:void(0);" onclick="click_point(333)" />
+    <area shape="circle" coords="928.2629629629629,897.8518518518518,14" href="javascript:void(0);" onclick="click_point(334)" />
+    <area shape="circle" coords="933.8122666666666,928.7394037037037,14" href="javascript:void(0);" onclick="click_point(335)" />
+    <area shape="circle" coords="969.5105666666665,926.3499592592592,14" href="javascript:void(0);" onclick="click_point(336)" />
+    <area shape="circle" coords="1005.7229592592593,923.9243111111111,14" href="javascript:void(0);" onclick="click_point(337)" />
+    <area shape="circle" coords="811.325,589.286237037037,14" href="javascript:void(0);" onclick="click_point(338)" />
+    <area shape="circle" coords="1002.1185185185183,894.9555555555555,14" href="javascript:void(0);" onclick="click_point(339)" />
+    <area shape="circle" coords="1002.1185185185183,867.4407407407407,14" href="javascript:void(0);" onclick="click_point(340)" />
+    <area shape="circle" coords="1000.6703703703704,844.2703703703704,14" href="javascript:void(0);" onclick="click_point(341)" />
+    <area shape="circle" coords="999.2222222222222,821.1,14" href="javascript:void(0);" onclick="click_point(342)" />
+    <area shape="circle" coords="960.1222222222221,821.1,14" href="javascript:void(0);" onclick="click_point(343)" />
+    <area shape="circle" coords="955.7777777777778,774.7592592592592,14" href="javascript:void(0);" onclick="click_point(344)" />
+    <area shape="circle" coords="952.8814814814815,731.3148148148148,14" href="javascript:void(0);" onclick="click_point(345)" />
+    <area shape="circle" coords="953.9067703703702,700.4373999999999,14" href="javascript:void(0);" onclick="click_point(346)" />
+    <area shape="circle" coords="949.9851851851852,674.8370370370371,14" href="javascript:void(0);" onclick="click_point(347)" />
+    <area shape="circle" coords="948.537037037037,645.8740740740741,14" href="javascript:void(0);" onclick="click_point(348)" />
+    <area shape="circle" coords="942.0203703703704,601.0698185185184,14" href="javascript:void(0);" onclick="click_point(349)" />
+    <area shape="circle" coords="920.7514185185184,539.8754222222223,14" href="javascript:void(0);" onclick="click_point(350)" />
+    <area shape="circle" coords="900.1790259259258,469.14352222222226,14" href="javascript:void(0);" onclick="click_point(351)" />
+    <area shape="circle" coords="933.9657703703704,453.3138148148148,14" href="javascript:void(0);" onclick="click_point(352)" />
+    <area shape="circle" coords="946.4198444444445,535.0328148148147,14" href="javascript:void(0);" onclick="click_point(353)" />
+    <area shape="circle" coords="961.0316592592592,462.836837037037,14" href="javascript:void(0);" onclick="click_point(354)" />
+    <area shape="circle" coords="970.0203148148148,531.4718185185184,14" href="javascript:void(0);" onclick="click_point(355)" />
+    <area shape="circle" coords="974.2547,565.7552777777777,14" href="javascript:void(0);" onclick="click_point(356)" />
+    <area shape="circle" coords="984.7407407407408,601.740311111111,14" href="javascript:void(0);" onclick="click_point(357)" />
+    <area shape="circle" coords="1008.9972222222221,602.1226222222223,14" href="javascript:void(0);" onclick="click_point(358)" />
+    <area shape="circle" coords="993.4296296296295,671.9407407407407,14" href="javascript:void(0);" onclick="click_point(359)" />
+    <area shape="circle" coords="1006.4629629629629,729.8666666666667,14" href="javascript:void(0);" onclick="click_point(360)" />
+    <area shape="circle" coords="980.3962962962963,729.8666666666667,14" href="javascript:void(0);" onclick="click_point(361)" />
+    <area shape="circle" coords="980.3962962962963,751.588888888889,14" href="javascript:void(0);" onclick="click_point(362)" />
+    <area shape="circle" coords="980.3962962962963,774.7592592592592,14" href="javascript:void(0);" onclick="click_point(363)" />
+    <area shape="circle" coords="1009.3592592592593,771.8629629629629,14" href="javascript:void(0);" onclick="click_point(364)" />
+    <area shape="circle" coords="1040.4162444444444,814.3313555555557,14" href="javascript:void(0);" onclick="click_point(365)" />
+    <area shape="circle" coords="1042.954848148148,921.4291518518517,14" href="javascript:void(0);" onclick="click_point(366)" />
+    <area shape="circle" coords="1039.4372962962962,773.0127925925925,14" href="javascript:void(0);" onclick="click_point(367)" />
+    <area shape="circle" coords="1036.9667555555554,727.3019962962964,14" href="javascript:void(0);" onclick="click_point(368)" />
+    <area shape="circle" coords="1033.2537037037039,602.5049333333335,14" href="javascript:void(0);" onclick="click_point(369)" />
+    <area shape="circle" coords="1025.8087740740743,539.6495111111111,14" href="javascript:void(0);" onclick="click_point(370)" />
+    <area shape="circle" coords="1022.1913000000001,486.54302222222213,14" href="javascript:void(0);" onclick="click_point(371)" />
+    <area shape="circle" coords="1017.187948148148,432.52854444444455,14" href="javascript:void(0);" onclick="click_point(372)" />
+    <area shape="circle" coords="1016.6014481481482,401.6395444444444,14" href="javascript:void(0);" onclick="click_point(373)" />
+    <area shape="circle" coords="1051.7914481481482,426.7026444444445,14" href="javascript:void(0);" onclick="click_point(374)" />
+    <area shape="circle" coords="1058.3819703703703,482.7170148148148,14" href="javascript:void(0);" onclick="click_point(375)" />
+    <area shape="circle" coords="1062.5294666666666,542.5964925925925,14" href="javascript:void(0);" onclick="click_point(376)" />
+    <area shape="circle" coords="1072.7157407407408,604.5728888888889,14" href="javascript:void(0);" onclick="click_point(377)" />
+    <area shape="circle" coords="1075.974074074074,669.0444444444445,14" href="javascript:void(0);" onclick="click_point(378)" />
+    <area shape="circle" coords="1074.2319518518518,725.0168185185186,14" href="javascript:void(0);" onclick="click_point(379)" />
+    <area shape="circle" coords="1077.1905185185185,769.0361777777779,14" href="javascript:void(0);" onclick="click_point(380)" />
+    <area shape="circle" coords="1115.746014814815,767.8834518518518,14" href="javascript:void(0);" onclick="click_point(381)" />
+    <area shape="circle" coords="1116.345548148148,677.9693814814816,14" href="javascript:void(0);" onclick="click_point(382)" />
+    <area shape="circle" coords="1149.3807037037038,678.2677000000001,14" href="javascript:void(0);" onclick="click_point(383)" />
+    <area shape="circle" coords="1110.7296296296297,644.4259259259259,14" href="javascript:void(0);" onclick="click_point(384)" />
+    <area shape="circle" coords="1111.0916666666667,605.0058851851852,14" href="javascript:void(0);" onclick="click_point(385)" />
+    <area shape="circle" coords="1097.6962962962964,541.6074074074073,14" href="javascript:void(0);" onclick="click_point(386)" />
+    <area shape="circle" coords="1093.3518518518517,482.2333333333333,14" href="javascript:void(0);" onclick="click_point(387)" />
+    <area shape="circle" coords="1084.6629629629629,448.9259259259259,14" href="javascript:void(0);" onclick="click_point(388)" />
+    <area shape="circle" coords="1078.8703703703704,395.34444444444443,14" href="javascript:void(0);" onclick="click_point(389)" />
+    <area shape="circle" coords="1119.4185185185183,479.337037037037,14" href="javascript:void(0);" onclick="click_point(390)" />
+    <area shape="circle" coords="1148.8492333333334,388.6134518518518,14" href="javascript:void(0);" onclick="click_point(391)" />
+    <area shape="circle" coords="1194.006837037037,380.9165444444444,14" href="javascript:void(0);" onclick="click_point(392)" />
+    <area shape="circle" coords="1245.335,372.34640370370374,14" href="javascript:void(0);" onclick="click_point(393)" />
+    <area shape="circle" coords="1242.178037037037,351.1889592592592,14" href="javascript:void(0);" onclick="click_point(394)" />
+    <area shape="circle" coords="1323.7884259259258,358.79318518518517,14" href="javascript:void(0);" onclick="click_point(395)" />
+    <area shape="circle" coords="1345.255774074074,379.06146666666666,14" href="javascript:void(0);" onclick="click_point(396)" />
+    <area shape="circle" coords="1350.9585814814811,402.2231481481482,14" href="javascript:void(0);" onclick="click_point(397)" />
+    <area shape="circle" coords="1301.7432666666666,409.9446740740741,14" href="javascript:void(0);" onclick="click_point(398)" />
+    <area shape="circle" coords="1250.7032851851852,416.54243703703696,14" href="javascript:void(0);" onclick="click_point(399)" />
+    <area shape="circle" coords="1202.1743925925925,425.5672962962963,14" href="javascript:void(0);" onclick="click_point(400)" />
+    <area shape="circle" coords="1152.1061185185185,411.73458518518515,14" href="javascript:void(0);" onclick="click_point(401)" />
+    <area shape="circle" coords="1155.095096296296,432.9528518518519,14" href="javascript:void(0);" onclick="click_point(402)" />
+    <area shape="circle" coords="1161.0860851851853,475.48061851851844,14" href="javascript:void(0);" onclick="click_point(403)" />
+    <area shape="circle" coords="1207.4659259259258,468.30504444444443,14" href="javascript:void(0);" onclick="click_point(404)" />
+    <area shape="circle" coords="1258.2742037037037,458.98910740740746,14" href="javascript:void(0);" onclick="click_point(405)" />
+    <area shape="circle" coords="1254.5857703703703,438.3095518518518,14" href="javascript:void(0);" onclick="click_point(406)" />
+    <area shape="circle" coords="1305.0189777777778,453.2095481481482,14" href="javascript:void(0);" onclick="click_point(407)" />
+    <area shape="circle" coords="1358.4397148148148,444.9435185185185,14" href="javascript:void(0);" onclick="click_point(408)" />
+    <area shape="circle" coords="1368.911274074074,486.2345666666667,14" href="javascript:void(0);" onclick="click_point(409)" />
+    <area shape="circle" coords="1312.6796814814813,495.31735185185187,14" href="javascript:void(0);" onclick="click_point(410)" />
+    <area shape="circle" coords="1263.074814814815,502.5523,14" href="javascript:void(0);" onclick="click_point(411)" />
+    <area shape="circle" coords="1215.685614814815,510.9848666666667,14" href="javascript:void(0);" onclick="click_point(412)" />
+    <area shape="circle" coords="1167.191477777778,518.8179,14" href="javascript:void(0);" onclick="click_point(413)" />
+    <area shape="circle" coords="1163.9345925925927,495.6967666666667,14" href="javascript:void(0);" onclick="click_point(414)" />
+    <area shape="circle" coords="1173.459062962963,563.3064592592592,14" href="javascript:void(0);" onclick="click_point(415)" />
+    <area shape="circle" coords="1270.1244,546.1097,14" href="javascript:void(0);" onclick="click_point(416)" />
+    <area shape="circle" coords="1266.8935814814815,525.3447037037035,14" href="javascript:void(0);" onclick="click_point(417)" />
+    <area shape="circle" coords="1325.3495296296296,540.225874074074,14" href="javascript:void(0);" onclick="click_point(418)" />
+    <area shape="circle" coords="1378.6182111111111,514.4792481481481,14" href="javascript:void(0);" onclick="click_point(419)" />
+    <area shape="circle" coords="1387.5373555555555,545.2364666666666,14" href="javascript:void(0);" onclick="click_point(420)" />
+    <area shape="circle" coords="1396.3768518518518,613.6527777777778,14" href="javascript:void(0);" onclick="click_point(421)" />
+    <area shape="circle" coords="1279.8009259259259,609.2822666666667,14" href="javascript:void(0);" onclick="click_point(422)" />
+    <area shape="circle" coords="1274.5513888888888,578.7886111111112,14" href="javascript:void(0);" onclick="click_point(423)" />
+    <area shape="circle" coords="1229.1157407407406,607.6675814814816,14" href="javascript:void(0);" onclick="click_point(424)" />
+    <area shape="circle" coords="1177.3444444444444,606.7740740740741,14" href="javascript:void(0);" onclick="click_point(425)" />
+    <area shape="circle" coords="1176.4581777777778,584.5797555555556,14" href="javascript:void(0);" onclick="click_point(426)" />
+    <area shape="circle" coords="1155.6222222222223,606.9565407407407,14" href="javascript:void(0);" onclick="click_point(427)" />
+    <area shape="circle" coords="360.5888888888889,887.7321925925925,14" href="javascript:void(0);" onclick="click_point(428)" />
+</map>

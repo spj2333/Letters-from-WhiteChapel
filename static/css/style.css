@@ -1,0 +1,60 @@
+/*gameboard*/
+.mapsize{width:1448px; height:960px; overflow:hidden; frameborder:no; border:0; marginwidth:0; marginheight:0; padding: 0 0 0 0; margin: 0 0 0 0;}
+
+#div-relative{position:relative;}
+.mapcomponent{position:absolute;}
+
+/*公共*/
+.whitebackground{background-color:rgba(255,255,255,0.5);}
+.textbig{font-size:1.6em;}
+.textsmall{font-size:0.9em;}
+.texttiny{font-size:0.8em; }
+
+
+/*#div-controler{position:absolute; left:1px; top:495px; z-index:91; font-size:0.5em; background-color:rgba(255,255,255,0.5); }*/
+
+#div-gamecmd2{ position:absolute; left:10px; top:560px; z-index:90;}
+
+#div-systeminfo{ position:absolute; left:1160px; top:640px; z-index:90; background-color:rgba(255,255,255,0.5)}
+#div-talkinfo{ position:absolute; left:1460px; top:8px; z-index:90;}
+
+
+.button-big{font-size:1.3em;background-color:rgba(255,255,255,0.8);}
+.button-big-bold{font-weight:bold;font-size:1.3em;background-color:rgba(255,255,255,0.8);}
+.button-action{font-weight:bold;font-size:0.8em;background-color:rgba(255,255,255,0.8);}
+
+
+
+.div-team {border-style: solid; border-width: 0 0 0 5px; padding-left:10px;}
+.div-board-jack{ border:0.5px solid #fab6b6; background: #ffdfdf; margin-bottom:5px;}
+.div-board-police{ border:0.5px solid #91b8ff; background: #b6cffa;  margin-bottom:5px;}
+.div-board-gamesetting{ border:0.5px solid #8b8b8b; background: #d9d9d9; margin-bottom:5px;}
+
+.div-agent {border-color: #10aa31; border-style: solid; border-width: 0 0 0 5px; padding-left:10px;}
+
+
+.redshadow{ box-shadow: 0px 0px 15px #fd2727;}
+.blueshadow{ box-shadow: 0px 0px 15px #1e56ff;}
+.whiteshadow{ box-shadow: 0px 0px 15px #ffffff;}
+
+@-webkit-keyframes  shineRed {
+    from { -webkit-box-shadow: 0 0 5px #bbb; }
+    50% { -webkit-box-shadow: 0 0 25px #fd2727; }
+    to { -webkit-box-shadow: 0 0 5px #bbb; }
+}
+@-webkit-keyframes shineBlue {
+    from { -webkit-box-shadow: 0 0 5px #bbb; }
+    50% { -webkit-box-shadow: 0 0 25px #1e56ff; }
+    to { -webkit-box-shadow: 0 0 5px #bbb; }
+}
+.shine_red{
+    -webkit-animation-name: shineRed;
+    -webkit-animation-duration: 3s;
+    -webkit-animation-iteration-count: infinite;
+}
+
+.shine_blue{
+    -webkit-animation-name: shineBlue;
+    -webkit-animation-duration: 3s;
+    -webkit-animation-iteration-count: infinite;
+}

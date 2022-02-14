@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>白教堂血案-复盘</title>
+	<script type="text/javascript" src="static/js/socket.io.js"></script>
+	<script type="text/javascript" src="static/js/jquery.min.js"></script>
+	
+	<script type="text/javascript" src="static/js/mapdata.js"></script>
+	<script type="text/javascript" src="static/js/boardfunc.js"></script>
+
+    <link rel="stylesheet" href="static/css/style.css">
+
+	<script type="text/javascript">
+        var roomid = '{{roomid}}'
+        var playername = '{{playername}}'
+        var home = '{{home}}'
+        var result = '{{result}}'
+
+        var div_temp;
+
+        var data = []
+        {% for itme in data %}
+        data.push({{itme|tojson}})
+        {% endfor %}
+
+
+
+        var text_winner = ['杰克胜利','侦探胜利']
+        var text_win_desp = ['对方投降','杰克被抓捕','杰克无法藏匿','杰克成功逃脱']
+
+        var whichDay = 0
+
+        {#画板#}
+        var canvas_2
+
+		$(document).ready(function() {
+
+		    {#注册画板#}
+            canvas_2 = document.getElementById('div-canvas-line');
+
+            {#房间信息#}
+            $('#div-roominfo').html('房间：' + roomid + '，玩家：'+ playername + '，藏匿点：'+ map[parseInt(home)].number);
+
+            let text = ''
+            if (result != '0'){
+                if (result == '1')
+                    text = text_winner[0] + '：' + text_win_desp[0]
+                else if (result == '2')
+                    text = text_winner[0] + '：' + text_win_desp[3]
+                else if (result == '-1')
+                    text = text_winner[1] + '：' + text_win_desp[0]
+                else if (result == '-2')
+                    text = text_winner[1] + '：' + text_win_desp[1]
+                else if (result == '-3')
+                    text = text_winner[1] + '：' + text_win_desp[2]
+                else
+                    text = '未知结果'
+            }
+            else
+                text = '游戏时间耗尽'
+
+            $('#div-servertime').html(text);
+            {#console.log(data);#}
+            {#console.log(data);#}
+
+
+
+            {#var d = document.getElementById("div-g");#}
+            {#[x, y] = coord(map[parseInt(home)].position);#}
+            {#d.style.left=(x-17)+'px';#}
+            {#d.style.top=(y-30)+'px';#}
+
+            if (data[4].length < 1){
+                document.getElementById("button2").setAttribute("disabled", true);
+                {#document.getElementById("button2").style.display = "none";#}
+            }
+            if (data[8].length < 1){
+                document.getElementById("button3").setAttribute("disabled", true);
+                {#document.getElementById("button3").style.display = "none";#}
+            }
+            if (data[12].length < 1){
+                document.getElementById("button4").setAttribute("disabled", true);
+                {#document.getElementById("button4").style.display = "none";#}
+            }
+
+
+		})
+
+		function changeDay(day){
+            whichDay = day;
+
+            var boardmsg={};
+            boardmsg['day'] = day;
+            boardmsg['turn'] = 0;
+            boardmsg['round'] = 0;
+            boardmsg['home'] = home;
+
+
+		    {#<!-- 删除 -->#}
+            drawclear(canvas_2);
+
+            line = day * 4 - 4;
+
+            {#改标题#}
+            document.getElementById('div-text-day').innerHTML = '第'+day+'天';
+
+            {#底部行动记录条#}
+            let j = 0;
+            for(var i=0;i<data[line].length;i++){    //--循环所有的行
+                <!-- console.log(i); -->
+                <!-- console.log(msg['moveLog'][i]); -->
+                let text = data[line][i];
+                if (text != '-' ){
+                    text += ('<br>('+ map[parseInt(data[line+1][j])].number+')');
+                    j += 1;
+                    document.getElementById('jacktable').rows[1].cells[i].innerHTML = text;
+                }
+                else{
+                    document.getElementById('jacktable').rows[1].cells[i].innerHTML = text;
+                }
+            }
+            for(var i=data[line].length;i<20;i++){    //--循环所有的行
+                document.getElementById('jacktable').rows[1].cells[i].innerHTML = "-";
+            }
+
+
+
+
+            {#杰克脚印#}
+            {#找到第一步#}
+            j = 0;
+            while (data[line][j]=="-")
+                j++;
+            jackfoot = data[line+1]
+
+            {#查到的线索#}
+            boardmsg['clue'] = data[line+2]
+
+            {#脚印#}
+            boardmsg['jackpos'] = jackfoot
+
+
+            for(var i=0;i<jackfoot.length;i++){
+                index = jackfoot[i]
+                if (document.getElementById('displaypawn1').checked) {
+                    {#轨迹线#}
+                    if (i > 0 && (whichDay != 3 || i>1)) {
+                        color = '#787878'
+                        if (document.getElementById('displaypawn7').checked) {
+                            if ("小巷" == data[line][j + i])
+                                color = 'yellow'
+                            if (data[line][j + i].search("马车") != -1)
+                                color = 'blue'
+                        }
+                        let x1, y1, x2, y2
+                        [x1, y1] = coord(map[parseInt(jackfoot[i - 1])].position);
+                        [x2, y2] = coord(map[parseInt(jackfoot[i])].position);
+                        drawline(canvas_2, x1, y1, x2, y2, 6, color, 0)
+                    }
+                }
+            }
+
+            {#杰克最初位置#}
+            if (whichDay == 3)
+                boardmsg['killedPoint'] = [jackfoot[0],jackfoot[1]]
+            else
+                boardmsg['killedPoint'] = [jackfoot[0]]
+
+
+            {#杰克最后位置#}
+            if (document.getElementById('displaypawn1').checked)
+                boardmsg['jacknowpos'] = jackfoot[jackfoot.length-1]
+
+            {#更新图标#}
+            document.getElementById('iframe-map').contentWindow.updateDIV(boardmsg)
+
+
+            {#侦探#}
+            var colors = ['#fd3838','#007dff', '#ffc105', '#2e9901','#8c05ff']
+            var policeName = ['A','B','C','D','E']
+            var policeList = []
+
+            if (document.getElementById('displaypawn2').checked)
+                policeList.push(0)
+            if (document.getElementById('displaypawn3').checked)
+                policeList.push(1)
+            if (document.getElementById('displaypawn4').checked)
+                policeList.push(2)
+            if (document.getElementById('displaypawn5').checked)
+                policeList.push(3)
+            if (document.getElementById('displaypawn6').checked)
+                policeList.push(4)
+
+
+            for (const policeNum of policeList){
+                policefoot = data[line+3][policeNum]
+
+
+                for(var i=0;i<policefoot.length;i++){
+
+                    {#侦探位置#}
+                    index = policefoot[i]
+                    {#console.log(index)#}
+                    let size = 1;
+                    if (i < policefoot.length-1){
+                        size = 0.8
+                    }
+
+                    if (index >= 0)
+                        createDivImg(div_temp, parseInt(index),'police'+policeName[policeNum], false, size)
+
+
+                    {#轨迹线#}
+                    if (i > 0) {
+                        color = colors[policeNum]
+                        {#console.log(policefoot[i - 1])#}
+                        {#console.log(policefoot[i])#}
+                        {#console.log(coord(map[parseInt(policefoot[i - 1])].position))#}
+                        {#console.log(i)#}
+                        let x1, y1, x2, y2
+                        [x1, y1] = coord(map[parseInt(policefoot[i - 1])].position);
+                        [x2, y2] = coord(map[parseInt(policefoot[i])].position);
+                        drawline(canvas_2, x1, y1, x2, y2, 5, color, 0)
+                    }
+
+
+
+                }
+            }
+
+
+
+        }
+
+        function closePolice(){
+		    if (document.getElementById('displaypawn8').checked){
+		        document.getElementById("displaypawn2").checked = "checked";
+                document.getElementById("displaypawn3").checked = "checked";
+                document.getElementById("displaypawn4").checked = "checked";
+                document.getElementById("displaypawn5").checked = "checked";
+                document.getElementById("displaypawn6").checked = "checked";
+            }
+		    else{
+		        document.getElementById("displaypawn2").checked = "";
+                document.getElementById("displaypawn3").checked = "";
+                document.getElementById("displaypawn4").checked = "";
+                document.getElementById("displaypawn5").checked = "";
+                document.getElementById("displaypawn6").checked = "";
+            }
+		    refresh()
+
+        }
+
+		function drawline(canvas, x1,y1,x2,y2,w,color,ran){
+
+		    // 拿到上下文
+            var context = canvas.getContext('2d');
+            // 设置线条的颜色
+            context.strokeStyle = color;
+            {#context.fillStyle = '#000000';#}
+
+            {#context.shadowColor = '#000000';#}
+            {#context.shadowBlur=5;#}
+
+            // 设置线条的宽度
+            context.lineWidth = w;
+
+            // 绘制直线
+            context.beginPath();
+            // 起点
+            context.moveTo(x1+ran*(Math.random()-0.5), y1+ran*(Math.random()-0.5));
+            // 终点
+            context.lineTo(x2+ran*(Math.random()-0.5), y2+ran*(Math.random()-0.5));
+            context.closePath();
+            context.stroke();
+
+        }
+
+        function refresh(){
+            changeDay(whichDay);
+            }
+
+        function click_point(n){
+		    return 0;
+        }
+
+	</script>
+
+
+</head>
+
+<body>
+    <div id="div-relative" class="mapsize">
+		<!-- 地图图层 -->
+
+        {#加载地图模块#}
+        <iframe id="iframe-map" name="iframe-map" style="left:0px; top:0px;" marginwidth="0" marginheight="0" class="mapsize mapcomponent" src="static/gameboard.html" ></iframe>
+
+        {#上方房间信息#}
+        <div id="div-roominfo" class="whitebackground textsmall mapcomponent" style="left:0px; top:0px; z-index:50;">房间信息</div>
+        <div id="div-servertime" class="whitebackground textsmall mapcomponent" style="left:0px; top:22px; z-index:50;">游戏结果</div>
+
+        <div id="div-text-day" class="whitebackground textbig mapcomponent" style="left:0px; top:44px; z-index:50;">第?天</div>
+
+        <div id="div-changeday" class="whitebackground textsmall mapcomponent" style="width:60px; height:100px; left:0px; top:80px; z-index:90;">
+            <button id="button1" type="button" onclick="changeDay(1)">第1天</button>
+            <button id="button2" type="button" onclick="changeDay(2)">第2天</button>
+            <button id="button3" type="button" onclick="changeDay(3)">第3天</button>
+            <button id="button4" type="button" onclick="changeDay(4)">第4天</button>
+        </div>
+
+
+        <div id="div-pawn" class="whitebackground textsmall mapcomponent" style="width:100px; height:190px; left:0px; top:230px; z-index:90;">
+            <b>显示移动轨迹</b><br>
+            <input id = "displaypawn1" type="checkbox" value="1" checked="checked" onclick="refresh()"/>杰克<br>
+            └<input id = "displaypawn7" type="checkbox" value="7" checked="checked" onclick="refresh()"/>特殊移动<br>
+            <input id = "displaypawn8" type="checkbox" value="1" checked="checked" onclick="closePolice()"/>侦探<br>
+            ├<input id = "displaypawn2" type="checkbox" value="2" checked="checked" onclick="refresh()"/>红侦探<br>
+            ├<input id = "displaypawn3" type="checkbox" value="3" checked="checked" onclick="refresh()"/>蓝侦探<br>
+            ├<input id = "displaypawn4" type="checkbox" value="4" checked="checked" onclick="refresh()"/>黄侦探<br>
+            ├<input id = "displaypawn5" type="checkbox" value="5" checked="checked" onclick="refresh()"/>绿侦探<br>
+            └<input id = "displaypawn6" type="checkbox" value="6" checked="checked" onclick="refresh()"/>紫侦探<br>
+        </div>
+
+
+        {#绘图区#}
+        {#线条#}
+        <canvas id="div-canvas-line" class="mapsize mapcomponent" width="1448px" height="960px" style="z-index:-5;"></canvas>
+
+
+	</div>
+
+    {#杰克记录条#}
+	<table id="jacktable" border="1" cellspacing="0" bgcolor="#FFFFCC" height="40" width="1448" style="table-layout:fixed;">
+		<tr align="center">
+			<th bgcolor="#C0C0C0">Ⅴ</th>
+            <th bgcolor="#C0C0C0">Ⅳ</th>
+            <th bgcolor="#C0C0C0">Ⅲ</th>
+            <th bgcolor="#C0C0C0">Ⅱ</th>
+            <th bgcolor="#C0C0C0">Ⅰ</th>
+            <th>01</th> <th>02</th> <th>03</th> <th>04</th> <th>05</th> <th>06</th> <th>07</th> <th>08</th> <th>09</th> <th>10</th> <th>11</th> <th>12</th> <th>13</th> <th>14</th> <th>15</th> </tr>
+		<tr align="center">
+			<td bgcolor="#C0C0C0">  </td> <td bgcolor="#C0C0C0">  </td> <td bgcolor="#C0C0C0">  </td> <td bgcolor="#C0C0C0">  </td> <td bgcolor="#C0C0C0">  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td> </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td>
+		</tr>
+	</table>
+
+	
+
+
+</body>
+</html>

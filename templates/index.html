@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>白教堂血案-登录</title>
+    <script type="text/javascript" src="static/js/jquery.min.js"></script>
+    <link rel="stylesheet" href="static/css/style.css">
+    <link rel="shortcut icon" href="/static/favicon.ico" />
+    <link rel="bookmark"href="/static/favicon.ico" />
+
+    <script type="text/javascript">
+		var serverState = parseInt('{{ states }}');
+        var roomid = '{{roomid}}';
+        var text_serverState = ['维护中','游戏中','空闲'];
+        var colors = ['#ff7878','#fcfca3','#a1fc8e']
+
+        $(document).ready(function() {
+            document.getElementById("text_serverState").innerHTML = "服务器状态 " + text_serverState[serverState];
+            document.getElementById("table_serverInfo").bgColor = colors[serverState];
+        })
+
+        function randomHome(){
+            let list = []
+			if (document.getElementById('randomHome1').checked) {
+                list = list.concat([125, 159, 100, 185, 26, 122, 123, 140, 170])
+            }
+			if (document.getElementById('randomHome2').checked) {
+                list = list.concat([30, 92, 102, 118, 183, 28, 29, 54, 73, 90, 91, 124, 136, 138, 139, 143])
+            }
+			if (document.getElementById('randomHome3').checked) {
+                list = list.concat([12, 15, 16, 27, 46, 52, 66, 77, 86, 98, 101, 106, 107, 108, 113, 120, 126, 131, 132, 172, 173, 178, 182, 186, 193, 33, 34, 35, 44, 48, 55, 68, 75, 76, 93, 94, 96, 114, 127, 145, 148, 151, 152, 155, 156])
+            }
+			if (document.getElementById('randomHome4').checked) {
+                list = list.concat([61, 81, 19, 22, 23, 43, 70, 87, 103, 38, 39, 60, 71, 88, 115, 128, 161, 162, 175, 179, 188, 4, 6, 7, 8, 10, 18, 20, 57, 67, 72, 82, 83, 99, 111, 117, 146, 160, 165, 167, 169, 176, 177, 181, 189, 194, 2, 5, 11, 14, 25, 31, 32, 40, 41, 45, 47, 51, 56, 62, 63, 74, 78, 80, 85, 95, 97, 104, 105, 112, 129, 130, 133, 134, 137, 144, 150, 154, 157, 168, 171, 184, 190, 191, 192, 1, 9, 13, 17, 24, 36, 37, 42, 49, 50, 53, 58, 59, 64, 69, 79, 89, 109, 110, 116, 119, 121, 135, 141, 142, 153, 163, 164, 166, 174, 180, 187, 195, 12, 15, 16, 46, 52, 66, 77, 86, 98, 101, 106, 107, 108, 113, 120, 126, 131, 132, 172, 173, 178, 182, 186, 193, 33, 34, 35, 44, 48, 55, 68, 75, 76, 93, 94, 96, 114, 127, 145, 148, 151, 152, 155, 156])
+            }
+			if (list.length >0){
+			    let home = list[Math.floor(Math.random() * list.length)];
+                $('#chooseHome').val(home);
+            }
+		}
+
+
+		function showMap() {
+            if (document.getElementById("button-map").innerHTML == "查看地图") {
+                document.getElementById("map").style.display = "block";
+                document.getElementById("button-map").innerHTML = "隐藏地图";
+            } else if (document.getElementById("button-map").innerHTML == "隐藏地图") {
+                document.getElementById("map").style.display = "none";
+                document.getElementById("button-map").innerHTML = "查看地图";
+            }
+        }
+    </script>
+
+    <style>
+        {##div-server{ padding:1px; overflow:hidden}#}
+        .divleft{ float:left; width:48%;}
+        .divright{ float:right; width:48%;}
+    </style>
+	
+	<!-- Global site tag (gtag.js) - Google Analytics -->
+	<script async src="https://www.googletagmanager.com/gtag/js?id=G-7V5FP3M4ML"></script>
+	<script>
+	  window.dataLayer = window.dataLayer || [];
+	  function gtag(){dataLayer.push(arguments);}
+	  gtag('js', new Date());
+
+	  gtag('config', 'G-7V5FP3M4ML');
+	</script>
+
+</head>
+<body>
+    <img src="https://cf.geekdo-images.com/H3G1t-oIjN9gEVVI21FoVg__itemrep/img/5ARXTgT-m-cjWOcaxGX9KMXMbxM=/fit-in/246x300/filters:strip_icc()/pic1545654.jpg" width="100" height="100" style="float:left; padding-right: 10px " />
+	<h2>白教堂血案 蜘蛛君在线试玩版</h2>
+
+	<p>
+        v0.87 测试版
+        <a href="https://www.boardgamegeek.com/boardgame/59959/letters-whitechapel" target="_blank">桌游信息</a>
+        <a href="https://www.bilibili.com/video/BV1b64y1o7Gq" target="_blank">游戏规则</a>
+        <a href="https://qm.qq.com/cgi-bin/qm/qr?k=e5CumG60VHQYaR0_i4RAlp9_HFeX_YCq&jump_from=webapi" target="_blank">联系作者</a>
+        <a href="http://spjgames.com/%e4%bd%9c%e8%80%85/" target="_blank">我要赞助</a>
+        <br>
+
+        本网站仅供试玩，请支持正版桌游。服务器不稳定，有任何BUG或疑问，请联系作者。
+    </p>
+
+    <hr />
+    <div id="div-server">
+
+        <table id="table_serverInfo" width="100%" border="1" cellpadding="4" cellspacing="0" style="BORDER-COLLAPSE: collapse">
+            <td width=40 hight=40>
+            <h3 id="text_serverState">当前服务器状态</h3>
+
+            <ul>
+              {% for itme in details %}
+              <li><b>{{itme[0]}} vs {{itme[1]}} </b>，{{itme[2]}}，剩余时间：{{itme[3]}}</li>
+              {% endfor %}
+            </ul>
+
+        </td>
+        </table>
+
+    </div>
+
+
+    <div style="cursor:pointer" onclick="$('#server-desp')[0].style.display=($('#server-desp')[0].style.display =='none')?'':'none'" >
+    <h3> + 服务器说明</h3></div>
+    <div id="server-desp" style="display:none">
+        <ul>
+            <li>若服务器空闲：杰克方可以创建房间，然后侦探方在<b>3分钟内</b>使用相同<b>房间号</b>加入游戏。</li>
+            <li>若服务器正处于游戏中：很遗憾当前不支持多局同时游戏，请等待服务器空闲。</li>
+            <li>游戏正式开始后，请在3小时内完成游戏，否则服务器会强制重启。</li>
+        </ul>
+    </div>
+
+
+	<hr />
+    <div class="div-team" style = "border-color:#fd2727">
+        <h3>杰克方 创建游戏</h3>
+        <form action="login_jack" method="POST">
+            <p>
+            玩家名 <input type = "text" name = "playername" placeholder="2-10字符" maxlength="10"/>
+            创建房间号 <input type = "int" name = "roomid" placeholder="3-7位整数编号" maxlength="7" style="width: 120px;"/>
+            设定藏匿点(家) <input id = "chooseHome" type = "int" name = "home" placeholder="藏匿点编号" style="width: 100px;" maxlength="3"/>
+            <input type = "submit" value = "提交并创建房间" />
+            </p>
+
+            <div class="div-board-gamesetting">
+                <b>游戏插件</b>
+                <input id = "AgentSwitch1" type="checkbox" name="AgentSwitch" value="1"/>杰克位置分析器<text style="cursor:help" title="根据场上公开的信息，分析杰克所有可能的位置，并在地图上使用黄色标记标出，杰克和侦探方均可见。"> (?)</text>
+            </div>
+
+        </form>
+
+        <div class="div-board-jack">
+            <b>藏匿点设定</b>
+            <button id='button-map' onclick='showMap()'>查看地图</button>
+            随机生成藏匿点
+            <input id = "randomHome1" type="checkbox" name="HomePool" value="1" checked="checked" />超级位置
+            <input id = "randomHome2" type="checkbox" name="HomePool" value="2" checked="checked" />简单位置
+            <input id = "randomHome3" type="checkbox" name="HomePool" value="3" />中等位置
+            <input id = "randomHome4" type="checkbox" name="HomePool" value="4" />困难位置
+            <button type="button" onclick="randomHome()">生成随机藏匿点</button>
+            <img id='map' style='display:none' src="static/images/map_home2.jpg" width="90%" height="90%" />
+        </div>
+
+
+    </div>
+
+    <hr />
+    <div class="div-team" style = "border-color:#1e56ff">
+        <h3>侦探方 加入游戏</h3>
+        <form action="login_police" method="POST">
+            <p>
+            玩家名 <input type = "text" name = "playername" placeholder="2-10字符" maxlength="10"/>
+            加入房间号 <input type = "int" name = "roomid" placeholder="杰克方房间号" maxlength="7" style="width: 120px;"/>
+            <input type = "submit" value = "提交并加入房间" />
+            </p>
+            <div class="div-board-police">
+
+            <b>侦探职责</b> <text style="cursor:help" title="侦探人数多于1时，可以限制侦探们操作权限，避免重复操作，造成错误。"> (?)</text>
+            <input type="radio" name="policepower" value="1" checked>警局队长（允许所有操作）
+            <input type="radio" name="policepower" value="2">侦探成员（无法快搜、结束、投降）
+            <input type="radio" name="policepower" value="3">见习学员（仅观战，无法操作）
+            </div>
+        </form>
+    </div>
+
+    <hr />
+    <div class="div-team" style = "border-color:#5a5a5a">
+        <h3>游戏复盘</h3>
+        <form action="view_history" method="POST">
+            <p>
+            验证房间号 <input type = "int" name = "roomid" placeholder="房间号" maxlength="7" style="width: 120px;" />
+            <input type = "submit" value = "提交并查看复盘" />
+            相同房间号只能查看最近一局的记录。
+            </p>
+        </form>
+    </div>
+	<hr />
+
+    <div name="log" style="cursor:pointer" onclick="$('#div-log')[0].style.display=($('#div-log')[0].style.display =='none')?'':'none'" >
+    <h3> + 更新记录</h3></div>
+    <div id="div-log" style="display:none">
+        <ul>
+            <li><b>项目开始</b>（20210601）</li>
+            <li>v0.1：测试版上线</li>
+            <li>v0.2：增加服务器限时重启功能。UI调整，增加游戏区域内功能框拖拽功能。侦探能够移动两步，增加侦探相撞判定。</li>
+            <li>v0.3：增加游戏结束重启功能。增加投降功能。UI调整，增加经典地图。其他一些细节优化。</li>
+            <li>v0.4：更换域名，增加等待侦探方加入限时，增加杰克无法穿越侦探判定。其他一些细节调整。</li>
+            <li>v0.5：增加侦探抓捕功能，增加侦探无法行动时的图标提示，侦探可以在一个指令中按顺序搜索多个点。其他一些细节调整。</li>
+            <li>v0.6：重构后台代码，增加杰克等待探查侦探位置步骤。大量细节优化。</li>
+            <li>v0.61：调整后台架构。杰克在底部行动条能够看到自己历史位置，脚印图案替换，左侧增加游戏流程提示。一些细节优化。</li>
+            <li>v0.7：增加随机藏匿点功能，增加查看复盘功能。修复BUG。</li>
+            <li>v0.71：增加可开启的语音提示功能，增加脚印和线索的开关选项，增加复盘时的杰克轨迹线。修复2个BUG。</li>
+            <li>v0.8：大幅度调整UI，增加指令的交互显示，增加当天未搜查到线索的图标提示，增加地名。增加不同侦探权限。增加游戏结果的存储。修复1个BUG。一些细节优化。</li>
+            <li>v0.81：增加侦探快速搜查功能，增加复盘侦探路径。修复2个BUG。一些细节优化。</li>
+            <li>v0.82：重构代码。修复BUG。一些细节优化。</li>
+            <li>v0.83：增加杰克位置分析器插件。</li>
+            <li>v0.84：修改语音部分，默认开启。强化UI。</li>
+            <li>v0.85：增加一个杰克走到藏匿点但不回家的确认提示。一些细节优化。</li>
+            <li>v0.86：杰克行动记录条下方添加笔记区。修复1个BUG。一些细节优化。</li>
+            <li>v0.87：复盘时能够看到侦探搜查到的线索位置，修复语音提示失效的BUG。一些细节优化。</li>
+
+        </ul>
+    </div>
+
+    <div name="credit" style="cursor:pointer" onclick="$('#div-credits')[0].style.display=($('#div-credits')[0].style.display =='none')?'':'none'" >
+    <h3> + Credits</h3></div>
+    <div id="div-credits" style="display:none">
+        <ul>
+            <li>Images: <a href="https://www.boardgamegeek.com/boardgame/59959/letters-whitechapel" target="_blank">BoardGameGeek</a></li>
+            <li>Graph Data: <a href="https://github.com/davidapple/Letters-From-Whitechapel" target="_blank">davidapple/Letters-From-Whitechapel</a></li>
+	    </ul>
+    </div>
+
+	
+{#	<hr />#}
+{#	<div name="log" style="cursor:pointer" onclick="$('#div-smode')[0].style.display=($('#div-smode')[0].style.display =='none')?'':'none'" >#}
+{#    <h3>管理员指令</h3></div>#}
+	<form action="login_admin" method="POST">
+		<input type = "text" name = "admincmd2" />
+		<input type = "submit" value = "管理员指令" />
+	</form>
+
+
+    {#    <div id="div-smode" class="div-team" style="display:none;border-color:#ffa800">#}
+    {#        <h3>S MODE</h3>#}
+    {#        <form action="login_smode" method="POST">#}
+    {#            <p>#}
+    {#                Name <input type = "text" name = "smodename" placeholder=""/>#}
+    {#                Password <input type = "int" name = "smodepasswd" placeholder=""/>#}
+    {#                Hideout <input type = "int" name = "smodehome" placeholder=""/>#}
+    {#            </p>#}
+    {#            <p>#}
+    {#                <input type="radio" name="smoderole" value="1" >Jack the Ripper#}
+    {#                <input type="radio" name="smoderole" value="2" checked>Detectives#}
+    {#            </p>#}
+    {#            <p><input type = "submit" value = "submit" /></p>#}
+    {##}
+    {#        </form>#}
+    {#	</div>#}
+
+
+	<hr />
+	蜘蛛君游戏 2022 <a href="http://spjgames.com" target="_blank">spjgames.com</a>
+</body>
+</html>

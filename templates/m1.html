@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>白教堂血案</title>
+	<script type="text/javascript" src="static/js/socket.io.js"></script>
+	<script type="text/javascript" src="static/js/jquery.min.js"></script>
+	
+	<script type="text/javascript" src="static/js/mapdata.js"></script>
+	<script type="text/javascript" src="static/js/drag1.js"></script>
+	<script type="text/javascript" src="static/js/voice.js"></script>
+	<script type="text/javascript" src="static/js/boardfunc.js"></script>
+    <script type="text/javascript" src="static/js/global.js"></script>
+
+    <link rel="stylesheet" href="static/css/style.css">
+
+
+	<script type="text/javascript">
+
+		var team = '{{teamname}}'
+        var roomid = '{{roomid}}'
+        var playername = '{{playername}}'
+        var policepower = '{{policepower}}'
+
+        var boardmsg;
+        var div_temp;
+        var div_temp_1;
+
+        {#数字图层#}
+        var canvas_number;
+
+        var m1_data;
+        var m1_round = 1;
+
+
+        $(document).ready(function() {
+			namespace = '/board'
+            if (ONLINE == true)
+			    var socket = io.connect(location.protocol + '//' + document.domain + namespace);
+			else
+                var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port + namespace);
+
+            {#拖动注册#}
+			drag(document.getElementById('div-m1'));
+			drag(document.getElementById('div-state'));
+
+            {#更新房间信息#}
+            $('#div-roominfo').html('房间：' + roomid + '，玩家：'+ playername + '，阵营：'+ team);
+
+			{#通信连接#}
+			socket.on('connect', function(){
+				console.log('connected');
+				socket.emit('joinmessage', {data: 'playerjoin', gameid: roomid});
+				
+            });
+			{#通信连接#}
+			socket.on('disconnect', function(){
+				console.log('disconnect');
+				socket.emit('leavemessage', {data: 'playerleave'});
+            });
+
+            {#刷新#}
+            $('form#refresh').submit(function(event) {
+                socket.emit('refresh', {roomid: roomid});
+                return false;
+            });
+
+			{#指令发送#}
+            $('form#m1_cmd').submit(function(event) {
+				let data = 'run'
+                socket.emit('agent1', {data:data, roomid:roomid});
+                return false;
+            });
+
+			
+            {#接收 系统消息#}
+            socket.on('sysmessage', function(msg) {
+				var today = new Date();
+				var hours = today.getHours() < 10 ? '0'+today.getHours() : today.getHours();
+				var mins = today.getMinutes() < 10 ? '0'+today.getMinutes() : today.getMinutes();
+				var secs = today.getSeconds() < 10 ? '0'+today.getSeconds() : today.getSeconds();
+				var nowtime = "["+hours + ":" + mins + ":" + secs+"]";
+				<!-- console.log('receive'); -->
+
+				{#$('#gamelog').scrollTop( $('#gamelog')[0].scrollHeight);#}
+                $('#gamelog').prepend($('#newsystemmessage').text()+'<br>');
+				$('#newsystemmessage').html(nowtime + msg.data);
+                if (document.getElementById("iframe-map").contentWindow.document.getElementById('displayVoice').checked) {
+                    voice(msg.data)
+                }
+            });
+			
+			{#接收 聊天消息#}
+            socket.on('chatmessage', function(msg) {
+				var today = new Date();
+				var hours = today.getHours() < 10 ? '0'+today.getHours() : today.getHours();
+				var mins = today.getMinutes() < 10 ? '0'+today.getMinutes() : today.getMinutes();
+				var secs = today.getSeconds() < 10 ? '0'+today.getSeconds() : today.getSeconds();
+				var nowtime = "["+hours + ":" + mins + ":" + secs+"]";
+				<!-- console.log('receive'); -->
+                $('#chatlog').append('<br>' +nowtime+ msg.data);
+				$('#chatlog').scrollTop( $('#chatlog')[0].scrollHeight);
+            });
+
+			{#接收 时间#}
+            socket.on('systime', function(msg) {
+				{#<!-- console.log('receive'); -->#}
+                document.getElementById('div-servertime').innerHTML = '剩余时间 '+msg.data;
+            });
+
+			{#接收 棋盘信息#}
+            socket.on('boardstate', function(msg) {
+
+                boardmsg = msg
+                {#测试代码#}
+				{#var ans = ""#}
+				{#for (var key in msg) {#}
+				{#　　var item = msg[key];#}
+				{#	ans += key + ': ' + item + '<br>'#}
+				{# }#}
+				{#console.log(msg);#}
+				{#$('#boardmap').html(ans);#}
+
+				updateInfo()
+
+            });
+
+            {#接收 分析结果#}
+            socket.on('agent1_result', function(msg) {
+				result(msg['data']);
+            });
+
+
+		});
+
+        {#禁止右键#}
+        $(document).bind("contextmenu", function(){ return false; });
+
+        {#向子页面申请更新所有绘制#}
+        function refreshBoard(){
+            {#更新图标#}
+            document.getElementById('iframe-map').contentWindow.updateDIV(boardmsg)
+            {#更新地图#}
+            document.getElementById('iframe-map').contentWindow.updateNumber(canvas_number, $('#emit_data').val(), $('#emit_data2').val() );
+        }
+
+        {#根据从后台收到的消息更新页面#}
+        function updateInfo(){
+            msg = boardmsg
+
+            {#天#}
+            document.getElementById('div-text-day').innerHTML = '第'+msg['day']+'天';
+            document.getElementById('div-text-round').innerHTML = '第'+msg['round']+'回合';
+            document.getElementById('div-text-carriage').innerHTML = msg['carriage'];
+            document.getElementById('div-text-alley').innerHTML = msg['alley'];
+
+            round = msg['round']
+            turn = msg['turn']
+            day = msg['day']
+
+            {#设置状态标题与描述#}
+            updateTitle()
+
+            if (day < 1){return 0}
+
+            {#警察位置记录#}
+            policeA = parseInt(msg['policeposition'+'A'])
+            policeB = parseInt(msg['policeposition'+'B'])
+            policeC = parseInt(msg['policeposition'+'C'])
+            policeD = parseInt(msg['policeposition'+'D'])
+            policeE = parseInt(msg['policeposition'+'E'])
+
+            // 底部行动条
+            let j = 0;
+            for(var i=0;i<msg['moveLog'].length;i++){    //--循环所有的行
+                let text = msg['moveLog'][i];
+                if (text != '-' && (msg['jackpos']!=undefined)){
+                    text += ('<br>('+ map[msg['jackpos'][j]].number+')');
+
+                    j += 1;
+                }
+                document.getElementById('jacktable').rows[1].cells[i].innerHTML = text;
+            }
+            for(var i=msg['moveLog'].length;i<20;i++){    //--循环所有的行
+                <!-- console.log(i); -->
+                <!-- console.log(msg['moveLog'][i]); -->
+                document.getElementById('jacktable').rows[1].cells[i].innerHTML = "-";
+            }
+
+            {#界面按钮#}
+            {#侦探隐藏抓捕技#}
+            if (team == '侦探') {
+                if (round == 0 && turn != 5){
+                    document.getElementById("button_PASS").style.display = "none";
+                }
+                else {
+
+                    document.getElementById("button_PASS").style.display = "";
+                }
+
+                if (round > 0 && (turn == 3)){
+                    document.getElementById("button_R").style.display = "";
+                    document.getElementById("button_SA").style.display = "";
+                }
+                else {
+                    document.getElementById("button_R").style.display = "none";
+                    document.getElementById("button_SA").style.display = "none";
+                }
+
+
+            }
+
+            if (team == '杰克') {
+                if (round == 0){
+                    document.getElementById("button_C").style.display = "none";
+                    document.getElementById("button_A").style.display = "none";
+                    document.getElementById("button_H").style.display = "none";
+                }
+                else {
+                    document.getElementById("button_C").style.display = "";
+                    document.getElementById("button_A").style.display = "";
+                    document.getElementById("button_H").style.display = "";
+                }
+
+                if (round == 0 && turn == 4){
+                    document.getElementById("button_PASS").style.display = "";
+                }
+                else {
+                    document.getElementById("button_PASS").style.display = "none";
+                }
+
+
+            }
+
+            {#更新棋盘#}
+            refreshBoard()
+
+        }
+
+        {#按照轮次更新所有文本#}
+        function updateTitle(){
+
+            {#控制区#}
+            let title = '';
+
+            if (day == 0)
+                title = text_waiting[0];
+            else if (turn == -1)
+                title = text_waiting[1];
+            else if (turn == -2)
+                title = text_waiting[2];
+            else
+                title = text_day[day] + text_round[round] + '-' + text_team[turn] + '-' + text_turn[Math.min(1, round)][turn]
+
+            if (title.length > 0) {
+                $('#waitfor').html(title);
+            }
+        }
+
+        {#点击地图地点#}
+		function click_point(n) {
+			{#console.log(n);#}
+
+		}	
+
+        {#接受结果#}
+		function result(data){
+		    console.log(data);
+		    if (data.length < 1)
+                return 0
+
+            m1_data = data;
+            if (document.getElementById('keepnew').checked) {
+                m1_changeRound('new')
+            }
+
+            {#for(var i=0;i<data.length;i++) {#}
+            {#    draw(data[i]);#}
+            {# }#}
+        }
+
+
+        {#切换#}
+		function m1_changeRound(m){
+            if (m == 'last')
+                m1_round = 1
+            else if (m == 'new')
+                m1_round = m1_data.length
+            else if (m == 'previous')
+                m1_round -= 1
+                if (m1_round <1)
+                    m1_round = 1
+            else if (m == 'next')
+                m1_round += 1
+                if (m1_round > m1_data.length )
+                    m1_round = m1_data.length
+            draw_jackpos()
+        }
+
+
+        {#绘制结果点#}
+        function draw_jackpos(){
+            {#let div_jackpos = document.getElementById('div-jackpos');#}
+
+            clearDIVtemp(div_temp_1);
+
+            $('#text_m1_round').html('第'+m1_round+'/'+m1_data.length+'回合');
+
+            if (document.getElementById('jackPosOn').checked) {
+
+                data = m1_data[m1_round-1]
+                for(var i=0;i<data.length;i++){
+                    index = data[i]
+                    if (index >= 0)
+                        createDivImg(div_temp_1, parseInt(index),'clueyellow', false)
+                }
+		    }
+		}
+
+    </script>
+
+
+</head>
+
+<body>
+
+	<div id="div-relative" class="mapsize">
+		<!-- 地图图层 -->
+
+
+
+        {#加载地图模块#}
+        <iframe id="iframe-map" name="iframe-map" style="left:0px; top:0px;" marginwidth="0" marginheight="0" class="mapsize mapcomponent" src="static/gameboard.html" ></iframe>
+
+
+        {#绘图区#}
+        {# <div id="div-jackpos" class="mapsize mapcomponent" width="1448px" height="960px" style="z-index:-1;"></div>#}
+
+
+        {#上方房间信息#}
+        <div id="div-roominfo" class="whitebackground textsmall mapcomponent" style="left:0px; top:0px; z-index:50;">房间信息</div>
+        <div id="div-servertime" class="whitebackground textsmall mapcomponent" style="left:0px; top:22px; z-index:50;">剩余时间</div>
+
+        {#左侧游戏信息#}
+		<div id="div-text-day" class="whitebackground textbig mapcomponent" style="left:0px; top:44px; z-index:50;">第？天</div>
+		<div id="div-text-round" class="whitebackground textbig mapcomponent" style="left:0px; top:78px; z-index:50;">第？回合</div>
+		<img src="static/images/carriage.jpg" class="mapcomponent" width="76" height="34" style="left:4px; top:114px; z-index:50;" /></div>
+		<div id="div-text-carriage" class="whitebackground textbig mapcomponent" style="width:35px; left:90px; top:122px; z-index:50;">？</div>
+        <img src="static/images/alley.jpg" class="mapcomponent" width="38" height="34" style="left:30px; top:156px; z-index:50;" /></div>
+		<div id="div-text-alley" class="whitebackground textbig mapcomponent" style="width:35px; left:90px; top:156px; z-index:50;">？</div>
+
+        {#控制器#}
+		<div id="div-state" class="whitebackground mapcomponent" style="left:750px; top:10px; z-index:91; cursor:move">
+			<form id="refresh" method="POST" action='#'>
+				<input id="button_refresh" type="submit" class="button-big" value="刷新" title ="立即更新游戏状态" style="background-color:rgba(200,200,0,0.8);">
+				<b><text id="waitfor" style="font-size:1.5em;">←请点击刷新 | 按F11全屏</text></b>
+
+			</form>
+
+            <text id="desp" style="font-size:1em;"></text>
+
+
+		</div>
+
+        {#杰克位置分析器#}
+        <div id="div-m1" class="whitebackground texttiny mapcomponent" style="width:95px; height:130px; left:10px; top:200px; z-index:90; cursor:move">
+            <b>杰克位置分析器</b>
+            <form id="m1_cmd" method="POST" action='#'>
+				<input class="button-agent1" type="submit" value="分析" title ="" style="background-color:rgba(100,255,100,0.8);">
+                <input id = "jackPosOn" type="checkbox" value="1" checked="checked" onclick="m1_changeRound('new')" />显示
+            </form>
+            <text id="text_m1_round" style="font-size:1.1em;">点击【分析】</text>
+            <br>
+            <input id = "keepnew" type="checkbox" value="1" checked="checked" onclick="m1_changeRound('new')" />保持最新
+            <br>
+            <button type="button" onclick="m1_changeRound('previous')" style="width:40px;" >&lt;</button>
+            <button type="button" onclick="m1_changeRound('next')" style="width:40px;">&gt;</button>
+            <br>
+            <button type="button" onclick="m1_changeRound('last')" style="width:40px;" >&lt;&lt;</button>
+            <button type="button" onclick="m1_changeRound('new')" style="width:40px;" >&gt;&gt;</button>
+
+
+        </div>
+
+
+
+        {#系统历史消息#}
+		<div id="div-systeminfo" class="whitebackground mapcomponent" style="width:280px; height:280px; left:1170px; top:650px; z-index:90;">
+            <text id="newsystemmessage" style="font-size:1em; color:#EE0000"></text>
+			<div id="gamelog" style="font-size:0.8em;height:250px;overflow:scroll;"></div>
+		</div>
+
+
+
+	</div>
+	
+    {#杰克记录条#}
+	<table id="jacktable" border="1" cellspacing="0" bgcolor="#FFFFCC" height="40" width="1448" style="table-layout:fixed;">
+		<tr align="center">
+			<th bgcolor="#C0C0C0">Ⅴ</th>
+            <th bgcolor="#C0C0C0">Ⅳ</th>
+            <th bgcolor="#C0C0C0">Ⅲ</th>
+            <th bgcolor="#C0C0C0">Ⅱ</th>
+            <th bgcolor="#C0C0C0">Ⅰ</th>
+            <th>01</th> <th>02</th> <th>03</th> <th>04</th> <th>05</th> <th>06</th> <th>07</th> <th>08</th> <th>09</th> <th>10</th> <th>11</th> <th>12</th> <th>13</th> <th>14</th> <th>15</th> </tr>
+		<tr align="center">
+			<td bgcolor="#C0C0C0">  </td> <td bgcolor="#C0C0C0">  </td> <td bgcolor="#C0C0C0">  </td> <td bgcolor="#C0C0C0">  </td> <td bgcolor="#C0C0C0">  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td> </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td>
+		</tr>
+	</table>
+
+	
+    {#聊天消息#}
+	<div id="div-talkinfo" style="width: 400px;">
+		<div id="chatlog" style="height:963px;overflow:scroll;background-color:rgba(200,200,200,0.5)">--聊天信息--</div>
+		<form id="emitchat" method="POST" action='#' accept-charset="UTF-8">
+			<input type="text" name="chat_data" id="chat_data" style="height:45px" placeholder="输入聊天信息">
+			<input type="submit" style="height:45px" value="发送">
+		</form>
+	</div>
+	
+	<text id="boardmap" style="height:150px;overflow:scroll;background:#EEEEEE;"> </text>
+
+
+	<hr />
+
+</body>
+
+</html>

@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>白教堂血案</title>
+	<script type="text/javascript" src="static/js/socket.io.js"></script>
+	<script type="text/javascript" src="static/js/jquery.min.js"></script>
+	
+	<script type="text/javascript" src="static/js/mapdata.js"></script>
+	<script type="text/javascript" src="static/js/drag1.js"></script>
+{#	<script type="text/javascript" src="static/js/voice.js"></script>#}
+	<script type="text/javascript" src="static/js/boardfunc.js"></script>
+	<script type="text/javascript" src="static/js/global.js"></script>
+
+    <link rel="stylesheet" href="static/css/style.css">
+
+
+	<script type="text/javascript">
+        var socket;
+		var team = '{{teamname}}';
+        if (team == '杰克'){
+            var teamcolor = colors_team[0];
+            var divshadow = "redshadow";
+        }
+        else if (team == '侦探'){
+            var teamcolor = colors_team[1];
+            var divshadow = "blueshadow";
+        }
+        else{
+            var teamcolor = "#000000";
+            var divshadow = "whiteshadow";
+        }
+        var roomid = '{{roomid}}';
+        var playername = '{{playername}}';
+        var policepower = '{{policepower}}';
+        var agent1_on = '{{agent1}}';
+
+        var boardmsg;
+        var div_temp;
+        var div_temp_1;
+        {#数字图层#}
+        var canvas_number;
+
+
+        $(document).ready(function() {
+			namespace = '/board'
+
+            if (ONLINE == true) {
+                var socket = io.connect(location.protocol + '//' + document.domain + namespace);
+                document.getElementById("button_test").style.display = "none";
+            }
+			else
+                var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port + namespace);
+
+            {#所有点#}
+            {#for (let i = 0; i < map.length; i++) {#}
+            {#    creat_clue(i);#}
+            {# }#}
+
+
+            {#拖动注册#}
+			{#drag(document.getElementById('div-systeminfo'));#}
+			drag(document.getElementById('div-state'));
+			drag(document.getElementById('div-controler'));
+            {#跟随鼠标#}
+
+
+            {#更新房间信息#}
+            $('#div-gamearea').addClass(divshadow);
+            $('#div-roominfo').html("房间：" + roomid + "，玩家："+ playername + "，阵营：<font color="+teamcolor+">◼"+ team+"</font>");
+
+            {#插件开关#}
+            if (agent1_on == 'False')
+                document.getElementById("iframe-agent1").style.display="none";
+
+            {#读取游戏流程#}
+            {
+                for (let i = 1; i < text_turn[0].length; i++) {
+                    {#document.getElementById('table-gamephase').rows[i].cells[0].innerHTML = ('<div>'+text_team[i] + '-' + text_turn[0][i]+'</div>');#}
+                    {#<abbr title="世界卫生组织">WHO</abbr>#}
+                    text = '行动方：'+text_team[i]+'&#10;'+text_desp[0][i]+'&#10;'+'操作方法'+'&#10;'+text_controlHelp[0][i];
+                    document.getElementById('table-gamephase').rows[i].cells[0].innerHTML = ('<div title='+text+'>'+text_team[i] + '-' + text_turn[0][i]+'</div>');
+                }
+                for (let i = 1; i < 4; i++) {
+                    text = '行动方：'+text_team[i]+'&#10;'+text_desp[1][i]+'&#10;'+'操作方法'+'&#10;'+text_controlHelp[1][i];
+                    document.getElementById('table-gamephase').rows[text_turn[0].length + i].cells[0].innerHTML = ('<div title='+text+'>'+text_team[i] + '-' + text_turn[1][i]+'</div>');
+                }
+                let i = 5
+                text = '行动方：'+text_team[i]+'&#10;'+text_desp[1][i]+'&#10;'+'操作方法'+'&#10;'+text_controlHelp[1][i];
+                document.getElementById('table-gamephase').rows[text_turn[0].length + i - 1].cells[0].innerHTML = ('<div title='+text+'>'+text_team[i] + '-' + text_turn[1][i]+'</div>');
+            }
+
+
+            {#隐藏按钮#}
+			if (team == '杰克' || team == 'admin'){
+				{#.style.display="none";	#}
+				document.getElementById("button_R").style.display="none";
+				document.getElementById("button_SA").style.display="none";
+				document.getElementById("button_PASS").innerHTML ="等待";
+			}
+			if (team == '侦探' || team == 'admin'){
+				document.getElementById("button_C").style.display="none";	
+				document.getElementById("button_A").style.display="none";	
+				document.getElementById("button_H").style.display="none";
+				document.getElementById("button_PASS").innerHTML ="结束";
+
+				if (policepower >= 2){
+				    {#禁用跳过投降按钮#}
+				    document.getElementById("button_PASS").setAttribute("disabled", true);
+				    document.getElementById("button_GG").setAttribute("disabled", true);
+				    document.getElementById("button_SA").setAttribute("disabled", true);
+                }
+				if (policepower >= 3){
+				    {#禁用执行按钮#}
+				    document.getElementById("submitcmd").setAttribute("disabled", true);
+				    document.getElementById("button_CMD2_run").setAttribute("disabled", true);
+                }
+
+			}
+			if (team == 'admin') {
+                document.getElementById("submitcmd").style.display = "none";
+                document.getElementById("button_CLEAR").style.display = "none";
+                document.getElementById("button_PASS").style.display = "none";
+            }
+
+
+			{#通信连接#}
+			socket.on('connect', function(){
+				console.log('connected');
+				socket.emit('joinmessage', {data: 'playerjoin', gameid: roomid});
+				
+            });
+			{#通信连接#}
+			socket.on('disconnect', function(){
+				console.log('disconnect');
+				socket.emit('leavemessage', {data: 'playerleave'});
+            });
+
+            {#刷新#}
+            $('form#refresh').submit(function(event) {
+                socket.emit('refresh', {roomid: roomid});
+                return false;
+            });
+
+			{#指令发送#}
+            $('form#emitcmd').submit(function(event) {
+				if ($('#emit_data').val() == ''){
+				return false;
+				}
+				var data = ''
+                if ($('#emit_data2').val() == 'R'){
+                    data = $('#emit_data').val() + '-' + $('#emit_data2').val()
+                }
+                else if ($('#emit_data2').val() != ''){
+                    data = $('#emit_data2').val() + '-' + $('#emit_data').val()
+                }
+                else{
+                    data = $('#emit_data').val()
+                }
+
+                {#杰克玩家 不回家确认#}
+                if (team == '杰克' && $('#emit_data2').val() == '' && $('#emit_data').val() == boardmsg['home']) {
+                    if (confirm("你的移动目标是藏匿点，但是没有选择回家。确定不回家么？（回家操作：点击【回家】按钮，然后点击目标点。当数字变为绿色表示回家）") == false) {
+                        return false;
+                    }
+
+                }
+
+                socket.emit('cmdmessage', {data:data, roomid:roomid});
+				$('#emit_data').val("");
+				$('#emit_data2').val("");
+                return false;
+            });
+			
+			{#PASS指令发送#}
+            $('form#passcmd').submit(function(event) {
+				
+				$('#emit_data').val('PASS');
+                socket.emit('cmdmessage', {data: $('#emit_data').val(),roomid: roomid});
+				$('#emit_data').val("");
+				<!-- console.log('emit2'); -->
+                return false;
+            });
+			
+			{#聊天发送#}
+			$('form#emitchat').submit(function(event) {
+				<!-- console.log('emit1'); -->
+                socket.emit('chatmessage', {data: $('#chat_data').val(),roomid: roomid});
+				<!-- console.log('emit2'); -->
+				$('#chat_data').val("");
+                return false;
+            });
+			
+            {#接收 系统消息#}
+            socket.on('sysmessage', function(msg) {
+				var today = new Date();
+				var hours = today.getHours() < 10 ? '0'+today.getHours() : today.getHours();
+				var mins = today.getMinutes() < 10 ? '0'+today.getMinutes() : today.getMinutes();
+				var secs = today.getSeconds() < 10 ? '0'+today.getSeconds() : today.getSeconds();
+				var nowtime = "["+hours + ":" + mins + ":" + secs+"]";
+				<!-- console.log('receive'); -->
+
+				{#$('#gamelog').scrollTop( $('#gamelog')[0].scrollHeight);#}
+                $('#gamelog').prepend($('#newsystemmessage').text()+'<br>');
+				$('#newsystemmessage').html(nowtime + msg.data);
+                if (document.getElementById("iframe-map").contentWindow.document.getElementById('displayVoice').checked) {
+                    document.getElementById('iframe-map').contentWindow.voice(msg.data)
+                }
+            });
+			
+			{#接收 聊天消息#}
+            socket.on('chatmessage', function(msg) {
+				var today = new Date();
+				var hours = today.getHours() < 10 ? '0'+today.getHours() : today.getHours();
+				var mins = today.getMinutes() < 10 ? '0'+today.getMinutes() : today.getMinutes();
+				var secs = today.getSeconds() < 10 ? '0'+today.getSeconds() : today.getSeconds();
+				var nowtime = "["+hours + ":" + mins + ":" + secs+"]";
+				<!-- console.log('receive'); -->
+                $('#chatlog').append('<br>' +nowtime+ msg.data);
+				$('#chatlog').scrollTop( $('#chatlog')[0].scrollHeight);
+            });
+
+			{#接收 时间#}
+            socket.on('systime', function(msg) {
+				{#<!-- console.log('receive'); -->#}
+                document.getElementById('div-servertime').innerHTML = '剩余时间 '+msg.data;
+            });
+							
+
+			{#接收 棋盘信息#}
+            socket.on('boardstate', function(msg) {
+
+                boardmsg = msg
+                {#测试代码#}
+				{#var ans = ""#}
+				{#for (var key in msg) {#}
+				{#　　var item = msg[key];#}
+				{#	ans += key + ': ' + item + '<br>'#}
+				{# }#}
+				{#console.log(msg);#}
+				{#$('#boardmap').html(ans);#}
+
+				updateInfo()
+
+            });
+
+		});
+
+        {#禁止右键#}
+        $(document).bind("contextmenu", function(){ return false; });
+
+        {#向子页面申请更新所有绘制#}
+        function refreshBoard(){
+            {#更新图标#}
+            document.getElementById('iframe-map').contentWindow.updateDIV(boardmsg)
+            {#更新地图#}
+            document.getElementById('iframe-map').contentWindow.updateNumber(canvas_number, $('#emit_data').val(), $('#emit_data2').val() );
+        }
+
+        {#根据从后台收到的消息更新页面#}
+        function updateInfo(){
+            msg = boardmsg
+
+            {#天#}
+            document.getElementById('div-text-day').innerHTML = '第'+msg['day']+'天';
+            document.getElementById('div-text-round').innerHTML = '第'+msg['round']+'回合';
+            document.getElementById('div-text-carriage').innerHTML = msg['carriage'];
+            document.getElementById('div-text-alley').innerHTML = msg['alley'];
+
+            round = msg['round']
+            turn = msg['turn']
+            day = msg['day']
+
+            {#设置状态标题与描述#}
+            updateTitle()
+
+            if (day < 1){return 0}
+
+            {#警察位置记录#}
+            policeA = parseInt(msg['policeposition'+'A'])
+            policeB = parseInt(msg['policeposition'+'B'])
+            policeC = parseInt(msg['policeposition'+'C'])
+            policeD = parseInt(msg['policeposition'+'D'])
+            policeE = parseInt(msg['policeposition'+'E'])
+
+            // 底部行动条
+            let j = 0;
+            for(var i=0;i<msg['moveLog'].length;i++){    //--循环所有的行
+                let text = msg['moveLog'][i];
+                if (text != '-' && (msg['jackpos']!=undefined)){
+                    text += ('<br>('+ map[msg['jackpos'][j]].number+')');
+
+                    j += 1;
+                }
+                document.getElementById('jacktable').rows[1].cells[i].innerHTML = text;
+            }
+            for(var i=msg['moveLog'].length;i<20;i++){    //--循环所有的行
+                <!-- console.log(i); -->
+                <!-- console.log(msg['moveLog'][i]); -->
+                document.getElementById('jacktable').rows[1].cells[i].innerHTML = "-";
+            }
+
+            {#界面按钮#}
+            {#侦探隐藏抓捕技#}
+            if (team == '侦探') {
+                if (round == 0 && turn != 5){
+                    document.getElementById("button_PASS").style.display = "none";
+                }
+                else {
+
+                    document.getElementById("button_PASS").style.display = "";
+                }
+
+                if (round > 0 && (turn == 3)){
+                    document.getElementById("button_R").style.display = "";
+                    document.getElementById("button_SA").style.display = "";
+                }
+                else {
+                    document.getElementById("button_R").style.display = "none";
+                    document.getElementById("button_SA").style.display = "none";
+                }
+
+
+            }
+
+            if (team == '杰克') {
+                if (round == 0){
+                    document.getElementById("button_C").style.display = "none";
+                    document.getElementById("button_A").style.display = "none";
+                    document.getElementById("button_H").style.display = "none";
+                }
+                else {
+                    document.getElementById("button_C").style.display = "";
+                    document.getElementById("button_A").style.display = "";
+                    document.getElementById("button_H").style.display = "";
+                }
+
+                if (round == 0 && turn == 4){
+                    document.getElementById("button_PASS").style.display = "";
+                }
+                else {
+                    document.getElementById("button_PASS").style.display = "none";
+                }
+
+
+            }
+
+            {#更新棋盘#}
+            refreshBoard()
+
+        }
+
+        {#按照轮次更新所有文本#}
+        function updateTitle(){
+            {#左侧列表#}
+            let color = '#000000';
+            var table = document.getElementById("table-gamephase")
+            let act_class;
+
+            $('#div-state').removeClass('shine_blue');
+            $('#div-state').removeClass('shine_red');
+
+            for (let i=0;i<table.getElementsByTagName("tr").length;i++){
+                table.rows[i].cells[0].style.color='#000000';
+            }
+
+            if (round == 0 && (turn == 1 || turn ==4 || turn == 6)){
+                color = colors_team[0];
+                table.rows[turn].cells[0].style.color=color;
+                $('#div-state').addClass('shine_red');
+            }
+            else if (round == 0 && (turn == 2 || turn ==3 || turn == 5)){
+                color = colors_team[1];
+                table.rows[turn].cells[0].style.color=color;
+                $('#div-state').addClass('shine_blue');
+            }
+            else if (round > 0 && (turn == 1)){
+                color = colors_team[0];
+                table.rows[text_turn[0].length + turn].cells[0].style.color=color;
+                $('#div-state').addClass('shine_red');
+            }
+            else if (round > 0 && (turn == 2 || turn ==3)){
+                color = colors_team[1];
+                table.rows[text_turn[0].length + turn].cells[0].style.color=color;
+                $('#div-state').addClass('shine_blue');
+            }
+            else if (round > 0 && (turn == 5)){
+                color = colors_team[1];
+                table.rows[text_turn[0].length + turn - 1].cells[0].style.color=color;
+                $('#div-state').addClass('shine_blue');
+            }
+
+            {#控制区#}
+            var title = '';
+            var desp = '';
+            if (day == 0){
+                title = text_waiting[0];
+                desp = ''
+            }
+            else if (turn == -1){
+                title = text_waiting[1];
+                desp = text_waiting[3];
+            }
+            else if (turn == -2){
+                title = text_waiting[2];
+                desp = text_waiting[3];
+            }
+            else {
+
+                title = text_day[day] + text_round[round] + '-' + text_team[turn] + '-' + text_turn[Math.min(1, round)][turn]
+                {#与当前玩家一致的#}
+                if (team == text_team[turn]) {
+                    desp = text_desp[Math.min(1, round)][turn]
+                    if (round == 0 && turn == 1) {
+                        desp = text_desp_jackSelect[day]
+                    }
+                }
+                else {
+                    desp = text_waiting[4]
+
+                }
+
+            }
+
+            if (desp.length > 0) {
+                {#$('#emit_data').attr("placeholder", desp);#}
+                {#$('#div-whattodo').html(desp);#}
+                $('#desp').html(desp);
+
+            }
+            if (title.length > 0) {
+                $('#waitfor').html("<font color="+color+">"+ title +"</font>");
+            }
+
+
+        }
+
+        {#点击地图地点#}
+		function click_point(n) {
+			{#console.log(n);#}
+
+            var maxNumber = 1
+            var white = 1
+            var black = 1
+
+			if (team == '杰克'){
+
+                if (round == 0){
+                    if (turn == 1){
+                        maxNumber = 5
+                        white = 1
+                        black = 0
+                    }
+                    if (turn == 4){
+                        if (day != 3) {maxNumber = 1}
+                        else {maxNumber = 2}
+                        white = 1
+                        black = 0
+                    }
+                    if (turn == 6){
+                        maxNumber = 1
+                        white = 0
+                        black = 1
+                    }
+                }
+
+                else{
+                    white = 1
+                    black = 0
+                    special = $('#emit_data2').val().substring(0,1)
+					if (special == 'A') {maxNumber = 1}
+					else if (special == 'C') {maxNumber = 2}
+					else {maxNumber = 1}
+                }
+
+                if ((white == 0 && map[n].number>0)||(black == 0 && map[n].number==undefined)){
+                    return 0
+                }
+
+                a = $('#emit_data').val().split("-")
+                if (a == ''){
+                    $('#emit_data').val(n);
+                }
+                else if (a.length >= maxNumber){
+                    $('#emit_data').val(n);
+                }
+                else{
+                    $('#emit_data').val($('#emit_data').val() + '-' + n);
+                }
+
+			}
+			
+			else if (team == '侦探'){
+				white = 0
+                black = 1
+
+				//初始布置
+				if (round == 0){
+					if (turn == 2){maxNumber = 2}
+					else if (turn == 3){maxNumber = 5}
+					else if (turn == 5){
+					    maxNumber = 2
+					}
+
+                    a = $('#emit_data').val().split("-")
+                    if (a == ''){
+                        $('#emit_data').val(n);
+                    }
+                    else if (a.length >= maxNumber){
+                        $('#emit_data').val(n);
+                    }
+                    else{
+                        $('#emit_data').val($('#emit_data').val() + '-' + n);
+                    }
+
+				}		
+				
+
+				//正常选择行动
+				else {
+					//移动 黑点坐标
+					if (turn == 2){
+						if ($('#emit_data').val() == ''){
+							if (policeA == n){$('#emit_data').val('A');}
+							else if (policeB == n){$('#emit_data').val('B');}
+							else if (policeC == n){$('#emit_data').val('C');}
+							else if (policeD == n){$('#emit_data').val('D');}
+							else if (policeE == n){$('#emit_data').val('E');}
+							else {$('#emit_data').val("");}
+							}
+						
+						else {
+							if (map[n].number > 0){return false;}
+							
+							a = $('#emit_data').val().split("-")
+							
+							if (a.length <= 2){
+								$('#emit_data').val($('#emit_data').val() + '-' + n);
+							}
+							else if (a.length > 3){
+								$('#emit_data').val("long");
+							}
+							else{
+								if (policeA == n){$('#emit_data').val('A');}
+								else if (policeB == n){$('#emit_data').val('B');}
+								else if (policeC == n){$('#emit_data').val('C');}
+								else if (policeD == n){$('#emit_data').val('D');}
+								else if (policeE == n){$('#emit_data').val('E');}
+								else {$('#emit_data').val(a[0] + '-' + n);}
+								
+							}
+
+						}
+					
+					}
+					//调查 白点坐标
+					else if (turn == 3){
+						if (policeA == n){$('#emit_data').val('A');}
+						else if (policeB == n){$('#emit_data').val('B');}
+						else if (policeC == n){$('#emit_data').val('C');}
+						else if (policeD == n){$('#emit_data').val('D');}
+						else if (policeE == n){$('#emit_data').val('E');}
+						else {
+							if (map[n].number > 0){
+								m = map[n].number
+
+                                {#抓捕#}
+                                if ($('#emit_data2').val().substring(0,1)=='R'){
+                                    maxNumber = 1
+                                    a = $('#emit_data').val().split("-")
+                                    if (a == ''){
+                                        $('#emit_data').val("");
+                                    }
+                                    else if (a.length <= maxNumber){
+                                        $('#emit_data').val($('#emit_data').val() + '-' + n);
+                                    }
+                                    else{
+                                        $('#emit_data').val($('#emit_data').val().substring(0,1) + '-' + n);
+                                    }
+
+                                }
+
+                                else{
+                                    {#搜查#}
+                                    maxNumber = 4
+                                    a = $('#emit_data').val().split("-")
+                                    if (a == ''){
+                                        $('#emit_data').val("");
+                                    }
+                                    else if (a.length <= maxNumber){
+                                        $('#emit_data').val($('#emit_data').val() + '-' + n);
+                                    }
+                                    else{
+                                        $('#emit_data').val($('#emit_data').val().substring(0,1));
+                                    }
+                                }
+
+
+							}
+							else {return false;}
+							
+
+						}
+					
+					}
+			
+				}
+
+
+			}
+
+            {#更新棋盘#}
+            refreshBoard()
+			{#移动便携控制器#}
+			moveCMDButton(n);
+
+		}	
+
+        {#移动便携控制器#}
+        function moveCMDButton(index){
+            if (index == -1){
+                [x, y] = [10,495]
+
+            }
+            else{
+                [x, y] = coord(map[parseInt(index)].position);
+
+                x-=14
+                y-=24
+
+            }
+
+            var odiv = document.getElementById("div-controler");
+            odiv.style.left = x + 'px';
+            odiv.style.top = y + 'px';
+
+
+        }
+
+		{#点击功能按钮#}
+		function click_button(n) {
+
+		    if (n == 'test'){
+
+		        if (team =='杰克'){
+		            $('#emit_data').val('8-148-94-182-346');
+				    $('#emit_data2').val('');
+				    document.getElementById('submitcmd').click();
+                }
+		        else if (team == '侦探'){
+		            $('#emit_data').val('76-56-312-190-33');
+				    $('#emit_data2').val('');
+				    document.getElementById('submitcmd').click();
+
+                }
+                return 0
+
+            }
+
+            if (n == 'CMD'){
+                document.getElementById('submitcmd').click();
+				moveCMDButton(-1)
+			}
+
+			if (n == 'CLEAR'){
+				$('#emit_data').val('');
+				$('#emit_data2').val('');
+				moveCMDButton(-1)
+			}
+		
+			if (n == 'GG'){
+				$('#emit_data').val('GG');
+				$('#emit_data2').val('');
+				document.getElementById('submitcmd').click();
+			}
+
+			if (n == 'PASS'){
+				$('#emit_data').val('PASS');
+				$('#emit_data2').val('');
+				document.getElementById('submitcmd').click();
+			}
+
+			if (n == 'SA'){
+				$('#emit_data').val('SA');
+				$('#emit_data2').val('');
+				document.getElementById('submitcmd').click();
+			}
+			
+			if (team == '杰克'){
+				if (n == 'C' || n == 'A'){
+					$('#emit_data2').val(n);
+					$('#emit_data').val('');
+					
+				}
+				else if (n == 'H'){
+					a = $('#emit_data').val().split("-")
+                    $('#emit_data2').val(n);
+					if (a.length > 1 ){
+						$('#emit_data').val('');
+					}
+				}
+			}
+			
+			if (team == '侦探'){
+				if (n == 'R'){
+					a = $('#emit_data').val().split("-")
+                    $('#emit_data2').val(n);
+					if (a.length > 2 ){
+						$('#emit_data').val(a[0]);
+					}
+				}
+			
+			}
+
+            {#更新棋盘#}
+            refreshBoard()
+		
+		}
+
+		{#投降确认#}
+        function validator_GG(name){
+            if(confirm("确定要投降吗？") == true) {
+                click_button('GG');
+                return true;
+            }
+            else
+                return false;
+        }
+
+
+    </script>
+	
+	<style>
+
+
+
+
+
+    </style>
+
+</head>
+
+<body>
+    <div id="div-gamearea">
+        <div id="div-relative" class="mapsize">
+            <!-- 地图图层 -->
+
+            {#加载地图模块#}
+            <iframe id="iframe-map" name="iframe-map" style="left:0px; top:0px;" marginwidth="0" marginheight="0" class="mapsize mapcomponent" src="static/gameboard.html" ></iframe>
+
+            {#上方房间信息#}
+            <div id="div-roominfo" class="whitebackground textsmall mapcomponent" style="left:0px; top:0px; z-index:50;">房间信息</div>
+            <div id="div-servertime" class="whitebackground textsmall mapcomponent" style="left:0px; top:22px; z-index:50;">剩余时间</div>
+
+            {#左侧游戏信息#}
+            <div id="div-text-day" class="whitebackground textbig mapcomponent" style="left:0px; top:44px; z-index:50;">第？天</div>
+            <div id="div-text-round" class="whitebackground textbig mapcomponent" style="left:0px; top:78px; z-index:50;">第？回合</div>
+
+            {#马车#}
+            <img src="static/images/carriage.jpg" class="mapcomponent" width="38" height="34" style="left:0px; top:120px; z-index:50;" />
+            <div id="div-text-round" class="whitebackground textbig mapcomponent" style="width:76; height:34; left:38px; top:120px; z-index:50; color:rgb(49,90,253);text-shadow:black 1px 1px 2px " >马车</div>
+            <div id="div-text-carriage" class="whitebackground textbig mapcomponent" style="width:30px; left:94px; top:120px; z-index:50;">？</div>
+
+            {#小巷#}
+            <img src="static/images/alley.jpg" class="mapcomponent" width="38" height="34" style="left:0px; top:156px; z-index:50;" />
+            <div id="div-text-round" class="whitebackground textbig mapcomponent" style="width:76; height:34; left:38px; top:156px; z-index:50;color:rgb(252,148,54);text-shadow:black 1px 1px 2px " >小巷</div>
+            <div id="div-text-alley" class="whitebackground textbig mapcomponent" style="width:30px; left:94px; top:156px; z-index:50;">？</div>
+
+            {#左侧游戏阶段#}
+            <div id="div-gamephase" class="whitebackground textsmall mapcomponent" style="left:0px; top:200px; z-index:50; cursor:help">
+                <table id="table-gamephase" align="left">
+                    <tr><td><b>谋杀阶段</b></td></tr>
+                    <tr><td>1</td></tr>
+                    <tr><td>2</td></tr>
+                    <tr><td>3</td></tr>
+                    <tr><td>4</td></tr>
+                    <tr><td>5</td></tr>
+                    <tr><td>6</td></tr>
+                    <tr><td><b>追捕阶段</b></td></tr>
+                    <tr><td>1</td></tr>
+                    <tr><td>2</td></tr>
+                    <tr><td>3</td></tr>
+                    <tr><td>4</td></tr>
+                </table>
+            </div>
+
+            {#控制器#}
+            <div id="div-state" class="whitebackground mapcomponent" style="left:760px; top:0px; z-index:91; cursor:move">
+                <form id="refresh" method="POST" action='#'>
+                    <input id="button_refresh" type="submit" class="button-big" value="刷新" title ="立即更新游戏状态" style="background-color:rgba(200,200,0,0.8);">
+                    <b><text id="waitfor" style="font-size:1.5em;">←请点击刷新 | 按F11全屏</text></b>
+
+                </form>
+
+                <form id="emitcmd" method="POST" action='#'>
+                    <input id="submitcmd" class="button-big" type="submit" value="执行" title ="在地图上点击位置，然后点击此按钮来确认指令" style="background-color:rgba(100,255,100,0.8);">
+                    <button type="button" class="button-big" id ="button_CLEAR" onclick="click_button('CLEAR')" title="清空已经选定的点" style="background-color:rgba(50,50,100,0.4);">清空</button>
+                    <button type="button" class="button-big" id ="button_PASS" onclick="click_button('PASS')" title ="结束当前回合" style="background-color:rgba(0,0,200,0.4);">跳过</button>
+                    <button type="button" class="button-big" id ="button_SA" onclick="click_button('SA')" title ="命令所有侦探自动搜查周围的所有点，并直接结束回合&#10如果侦探相邻点有线索，则会优先搜查随机一个有线索的点；&#10若所有点都无线索，则搜查所有点&#10搜查过程中会跳过已经搜出线索的点" style="background-color:rgba(0,222,255,0.4);">快搜</button>
+
+                    <button type="button" class="button-big-bold" id ="button_C" class="button-action" onclick="click_button('C')" title="连续移动两步，可以穿越侦探。需要消耗一次马车使用次数" style="color:rgb(49,90,253);">马车</button>
+                    <button type="button" class="button-big-bold" id ="button_A" class="button-action" onclick="click_button('A')" title="穿过街区移动一步。需要消耗一次小巷使用次数" style="color:rgb(252,148,54);">小巷</button>
+                    <button type="button" class="button-big-bold" id ="button_H" class="button-action" onclick="click_button('H')" title="正常移动一步之后宣布到达藏匿点，结束今天的追捕" style="color:rgb(4,186,22);">回家</button>
+                    <button type="button" class="button-big-bold" id ="button_R" class="button-action" onclick="click_button('R')" title="如果杰克正处于目标点，则侦探直接获得胜利。否则无事发生，且该侦探结束行动" style="color:rgb(225,4,250);">抓捕</button>
+
+                    <text id="desp" style="font-size:1em;"></text>
+                </form>
+
+            </div>
+
+            {#地图数据显示#}
+            <div id="div-emitdata" class="mapcomponent" style="left:1240px; top:10px;">
+                <input type="text" class="texttiny whitebackground" id="emit_data2" disabled="disabled" placeholder="" style="width:13px;height:15px;z-index:-10;">
+                <input type="text" class="texttiny whitebackground" id="emit_data" disabled="disabled" placeholder="" style="width:170px;height:15px;z-index:-10;">
+            </div>
+
+            {#便携控制#}
+            <div id="div-controler" class="text whitebackground mapcomponent" style="left:10px; top:495px; :44px; height:21px; cursor:move; -index:91;">
+    {#            #}
+                <button type="button" id ="button_CMD2_run" onclick="click_button('CMD')" style="width:20px; height:20px; font-size:0.7em;background-color:rgba(100,255,100,0.8);">✔</button>
+                <button type="button" id ="button_CMD2_clear" onclick="click_button('CLEAR')" style="width:20px; height:20px; font-size:0.7em;background-color:rgba(50,50,100,0.7);">✘</button>
+            </div>
+
+            {#系统历史消息#}
+            <div id="div-systeminfo" class="whitebackground mapcomponent" style="width:270px; height:280px; left:1170px; top:650px; z-index:90;">
+                <text id="newsystemmessage" style="font-size:1em; color:#EE0000"></text>
+                <div id="gamelog" style="font-size:0.8em;height:250px;overflow:scroll;"></div>
+            </div>
+
+
+
+        </div>
+
+        {#杰克记录条#}
+        <table id="jacktable" border="1" cellspacing="0" bgcolor="#FFFFCC" height="40" width="1441" style="table-layout:fixed;">
+            <tr align="center" height="30">
+                <th bgcolor="#C0C0C0">Ⅴ</th>
+                <th bgcolor="#C0C0C0">Ⅳ</th>
+                <th bgcolor="#C0C0C0">Ⅲ</th>
+                <th bgcolor="#C0C0C0">Ⅱ</th>
+                <th bgcolor="#C0C0C0">Ⅰ</th>
+                <th>01</th> <th>02</th> <th>03</th> <th>04</th> <th>05</th> <th>06</th> <th>07</th> <th>08</th> <th>09</th> <th>10</th> <th>11</th> <th>12</th> <th>13</th> <th>14</th> <th>15</th> </tr>
+            <tr align="center" height="30">
+                <td bgcolor="#C0C0C0">  </td> <td bgcolor="#C0C0C0">  </td> <td bgcolor="#C0C0C0">  </td> <td bgcolor="#C0C0C0">  </td> <td bgcolor="#C0C0C0">  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td> </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td>
+            </tr>
+        </table>
+        {#可编辑记录条#}
+        <table id="note" border="1" cellspacing="0" width="1441" style="table-layout:fixed;">
+            <tr align="center" contentEditable="true"  height="30">
+                <td >笔记区</td> <td >  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td> </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td>
+            </tr>
+            <tr align="center" contentEditable="true"  height="30">
+                <td ></td> <td >  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td> </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td>
+            </tr>
+            <tr align="center" contentEditable="true"  height="30">
+                <td > </td> <td >  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td> </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td>
+            </tr>
+            <tr align="center" contentEditable="true"  height="30">
+                <td > </td> <td >  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td> <td> </td> <td>  </td> <td>  </td> <td>  </td> <td>  </td>
+            </tr>
+        </table>
+    </div>
+
+    {#聊天消息#}
+	<div id="div-talkinfo" style="width:135px;">
+		<div id="chatlog" style="height:963px;overflow:scroll;background-color:rgba(200,200,200,0.5)">--聊天信息--</div>
+		<form id="emitchat" method="POST" action='#' accept-charset="UTF-8">
+			<input type="text" name="chat_data" id="chat_data" style="width:80px; height:30px" placeholder="输入聊天信息">
+			<input type="submit" style="width:40px;height:30px" value="发送">
+		</form>
+	</div>
+	
+	<text id="boardmap" style="height:150px;overflow:scroll;background:#EEEEEE;"> </text>
+	
+	
+    {#左侧操作#}
+	<div id="div-gamecmd2" style=""> 
+		<button id = "button_GG" type="button" onclick="validator_GG()" style="font-size:1.1em;background-color:rgba(255,0,0,0.55);">投降</button>
+        <br>
+		<button id = "button_test" type="button" onclick="click_button('test')" style="font-size:1.1em;background-color:rgba(200,200,200,0.55);">测试</button>
+	</div>
+	
+
+	<hr />
+
+    {#加载插件#}
+
+    <iframe id="iframe-agent1" name="iframe-agent1" class="div-agent" style="width:1000px; height:106px;" src="static/m1_bk.html" ></iframe>
+
+
+</body>
+
+</html>
